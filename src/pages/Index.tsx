@@ -4,8 +4,8 @@ import { Input } from '@/components/ui/input';
 import Icon from '@/components/ui/icon';
 import { Badge } from '@/components/ui/badge';
 import WBOrderProcessor from '@/components/WBOrderProcessor';
-import AudioTester from '@/components/AudioTester';
-import { audioSystem } from '@/utils/audioSystem';
+import BasicTester from '@/components/BasicTester';
+// import { audioSystem } from '@/utils/audioSystem';
 
 // Типы данных
 interface OrderItem {
@@ -465,8 +465,8 @@ const Index = () => {
                   <summary className="text-xs font-medium text-gray-600 hover:text-gray-800 px-2 py-1">
                     🎵 Тест озвучки
                   </summary>
-                  <div className="mt-2 w-96">
-                    <AudioTester />
+                  <div className="mt-2">
+                    <BasicTester />
                   </div>
                 </details>
               </div>

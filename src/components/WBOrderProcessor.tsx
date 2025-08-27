@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Icon from '@/components/ui/icon';
-import { audioSystem } from '@/utils/audioSystem';
+import { simpleAudio } from '@/utils/simpleAudio';
 
 interface OrderItem {
   id: string;
@@ -41,7 +41,11 @@ const WBOrderProcessor: React.FC<WBOrderProcessorProps> = ({ order, onComplete, 
 
   // Инициализация аудиосистемы
   useEffect(() => {
-    audioSystem.preloadAudio();
+    try {
+      simpleAudio.initialize();
+    } catch (error) {
+      console.warn('Ошибка инициализации аудиосистемы:', error);
+    }
   }, []);
 
   // Автоматический переход после озвучки ячейки
@@ -49,17 +53,17 @@ const WBOrderProcessor: React.FC<WBOrderProcessorProps> = ({ order, onComplete, 
     if (currentStep === 'found') {
       const processOrder = async () => {
         // Озвучиваем последовательность для ячейки
-        await audioSystem.playFindCellAudio(); // "Найдите вашу ячейку номер"
+        await simpleAudio.playFindCellAudio(); // "Найдите вашу ячейку номер"
         setTimeout(async () => {
-          await audioSystem.playCellAudio(order.cellNumber); // "A15"
+          await simpleAudio.playCellAudio(order.cellNumber); // "A15"
           
           setTimeout(async () => {
-            await audioSystem.playCellOpenAudio(); // "Ячейка открыта, заберите товар"
+            await simpleAudio.playCellOpenAudio(); // "Ячейка открыта, заберите товар"
             
             // Затем озвучиваем скидки если есть
             setTimeout(async () => {
               if (order.hasDiscount) {
-                await audioSystem.playDiscountAudio();
+                await simpleAudio.playDiscountAudio();
               }
               
               // Переходим к этапу получения товара
@@ -81,7 +85,7 @@ const WBOrderProcessor: React.FC<WBOrderProcessorProps> = ({ order, onComplete, 
     // Имитируем сканирование товара сотрудником
     setTimeout(async () => {
       // Озвучиваем "Проверьте товар под камерой"
-      await audioSystem.playCheckCameraAudio();
+      await simpleAudio.playCheckCameraAudio();
       setCurrentStep('checking');
       setIsProcessing(false);
     }, 1500);
@@ -93,7 +97,7 @@ const WBOrderProcessor: React.FC<WBOrderProcessorProps> = ({ order, onComplete, 
     newScannedItems.add(itemId);
     setScannedItems(newScannedItems);
 
-    await audioSystem.playSuccessSound();
+    await simpleAudio.playSuccessSound();
 
     // Если все товары проверены, переходим к оплате
     if (newScannedItems.size === order.items.length) {
@@ -113,16 +117,16 @@ const WBOrderProcessor: React.FC<WBOrderProcessorProps> = ({ order, onComplete, 
       setCurrentStep('completed');
       
       // Последовательность озвучек при завершении
-      await audioSystem.playSuccessSound(); // Успешная оплата
+      await simpleAudio.playSuccessSound(); // Успешная оплата
       
       setTimeout(async () => {
-        await audioSystem.playThankYouAudio(); // "Спасибо за покупку"
+        await simpleAudio.playThankYouAudio(); // "Спасибо за покупку"
         
         setTimeout(async () => {
-          await audioSystem.playRateUsAudio(); // "Оцените наш пункт выдачи в приложении"
+          await simpleAudio.playRateUsAudio(); // "Оцените наш пункт выдачи в приложении"
           
           setTimeout(async () => {
-            await audioSystem.playGoodDayAudio(); // "Хорошего дня"
+            await simpleAudio.playGoodDayAudio(); // "Хорошего дня"
             
             // Завершаем через 2 секунды
             setTimeout(() => {
@@ -138,7 +142,7 @@ const WBOrderProcessor: React.FC<WBOrderProcessorProps> = ({ order, onComplete, 
 
   // Отмена заказа
   const handleCancel = async () => {
-    await audioSystem.playErrorSound();
+    await simpleAudio.playErrorSound();
     onCancel();
   };
 
