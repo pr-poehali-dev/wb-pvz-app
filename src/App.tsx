@@ -1,14 +1,8 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import Icon from '@/components/ui/icon';
 
 const WBPickupApp = () => {
-  const [activeOrder, setActiveOrder] = useState('');
-  const [qrInput, setQrInput] = useState('');
-
+  const [phoneNumber, setPhoneNumber] = useState('');
+  
   const playSound = (text: string) => {
     if ('speechSynthesis' in window) {
       const utterance = new SpeechSynthesisUtterance(text);
@@ -18,110 +12,123 @@ const WBPickupApp = () => {
     }
   };
 
-  const handleQRScan = (qrCode: string) => {
-    setActiveOrder(qrCode);
-    playSound(`Заказ ${qrCode} найден. Ячейка А15`);
+  const handleQRClick = () => {
+    playSound('Отсканируйте QR-код клиента или курьера');
   };
 
-  const quickMessages = [
-    { id: 'welcome', text: 'Добро пожаловать в пункт выдачи', icon: 'UserCheck', color: 'bg-blue-500' },
-    { id: 'cell', text: 'Ячейка А15', icon: 'Package', color: 'bg-green-500' },
-    { id: 'discount', text: 'Товары со скидкой, проверьте ВБ кошелек', icon: 'Percent', color: 'bg-purple-500' },
-    { id: 'check', text: 'Проверьте товар под камерой', icon: 'Camera', color: 'bg-orange-500' },
-    { id: 'rate', text: 'Оцените наш пункт выдачи в приложении', icon: 'Star', color: 'bg-red-500' },
-    { id: 'goodbye', text: 'Спасибо за покупку, хорошего дня', icon: 'Heart', color: 'bg-cyan-500' }
-  ];
+  const handlePhoneSubmit = () => {
+    if (phoneNumber.length >= 4) {
+      playSound(`Номер телефона ${phoneNumber} принят`);
+    }
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, '');
+    setPhoneNumber(value);
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
-        <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
-          <CardHeader className="text-center">
-            <CardTitle className="text-3xl font-bold text-gray-900 flex items-center justify-center gap-3">
-              <Icon name="Package" size={32} className="text-blue-600" />
-              WB ПВЗ - Система озвучки
-            </CardTitle>
-            <Badge variant="secondary" className="mx-auto bg-green-100 text-green-800">
-              <Icon name="CheckCircle" size={16} className="mr-1" />
-              Система работает
-            </Badge>
-          </CardHeader>
-        </Card>
-
-        {/* QR Scanner Section */}
-        <Card className="border-0 shadow-lg bg-white/90 backdrop-blur">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Icon name="QrCode" size={24} />
-              QR-код сканер
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex gap-2">
-              <Input
-                placeholder="Введите или отсканируйте QR-код"
-                value={qrInput}
-                onChange={(e) => setQrInput(e.target.value)}
-                className="flex-1"
-              />
-              <Button 
-                onClick={() => handleQRScan(qrInput)}
-                disabled={!qrInput}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                <Icon name="Search" size={16} className="mr-2" />
-                Найти
-              </Button>
+    <div className="min-h-screen bg-gray-100 flex flex-col">
+      {/* Header */}
+      <div className="bg-white shadow-sm px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-pink-600 rounded flex items-center justify-center">
+            <span className="text-white text-sm font-bold">WB</span>
+          </div>
+          <span className="text-gray-900 font-medium">WB ПВЗ</span>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          <div className="flex bg-gray-100 rounded-lg p-1">
+            <button className="px-4 py-2 bg-purple-100 text-purple-700 rounded-md text-sm font-medium flex items-center gap-2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+              Выдача
+            </button>
+            <button className="px-4 py-2 text-gray-600 rounded-md text-sm font-medium flex items-center gap-2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                <polyline points="3.27,6.96 12,12.01 20.73,6.96"/>
+                <line x1="12" y1="22.08" x2="12" y2="12"/>
+              </svg>
+              Приемка
+            </button>
+            <button className="px-4 py-2 text-gray-600 rounded-md text-sm font-medium flex items-center gap-2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                <polyline points="9,22 9,12 15,12 15,22"/>
+              </svg>
+              Возврат
+            </button>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
+              13
             </div>
+            <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
+              Установить версию
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col items-center justify-center px-4 py-8">
+        <div className="w-full max-w-md text-center space-y-8">
+          {/* Title */}
+          <h1 className="text-xl text-gray-700 font-medium">
+            Отсканируйте QR-код клиента или курьера
+          </h1>
+
+          {/* QR Scanner */}
+          <div 
+            className="flex justify-center cursor-pointer"
+            onClick={handleQRClick}
+          >
+            <img 
+              src="https://cdn.poehali.dev/files/db0e9f54-681c-40d1-9c1e-82c54540fe15.png" 
+              alt="QR Scanner"
+              className="w-48 h-48 object-contain hover:scale-105 transition-transform"
+            />
+          </div>
+
+          {/* OR Divider */}
+          <div className="text-gray-500 text-sm font-medium">
+            или
+          </div>
+
+          {/* Phone Input */}
+          <div className="space-y-4">
+            <p className="text-gray-700 font-medium">
+              Введите номер телефона клиента
+            </p>
             
-            {activeOrder && (
-              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                <div className="flex items-center gap-2 text-green-800">
-                  <Icon name="CheckCircle" size={20} />
-                  <span className="font-medium">Заказ найден: {activeOrder}</span>
-                </div>
-                <p className="text-sm text-green-600 mt-1">Ячейка: А15</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Quick Messages */}
-        <Card className="border-0 shadow-lg bg-white/90 backdrop-blur">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Icon name="Volume2" size={24} />
-              Быстрые сообщения
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {quickMessages.map((message) => (
-                <Button
-                  key={message.id}
-                  onClick={() => playSound(message.text)}
-                  className={`${message.color} hover:opacity-90 text-white p-4 h-auto flex flex-col items-center gap-2 transition-all duration-200 hover:scale-105`}
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={phoneNumber}
+                onChange={handlePhoneChange}
+                placeholder="Последние 4 цифры номера"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-center text-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                maxLength={10}
+              />
+              
+              {phoneNumber.length >= 4 && (
+                <button
+                  onClick={handlePhoneSubmit}
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-lg font-medium transition-colors"
                 >
-                  <Icon name={message.icon as any} size={24} />
-                  <span className="text-sm font-medium text-center leading-tight">
-                    {message.text}
-                  </span>
-                </Button>
-              ))}
+                  Найти заказ
+                </button>
+              )}
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Status */}
-        <Card className="border-0 shadow-lg bg-white/90 backdrop-blur">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-center gap-2 text-gray-600">
-              <Icon name="Mic" size={18} />
-              <span className="text-sm">Нажмите любую кнопку для тестирования озвучки</span>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   );
