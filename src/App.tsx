@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import AudioSetup from './components/AudioSetup';
 
 interface Order {
   id: string;
@@ -23,23 +24,48 @@ const WBPickupApp = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Улучшенная система озвучки с реальными аудио файлами
+  // Улучшенная система озвучки с поддержкой реальных и демо аудио
   const playAudio = async (audioFile: string, fallbackText: string) => {
     try {
       // Пробуем воспроизвести реальный аудио файл
       const audio = new Audio(`/audio/${audioFile}`);
-      audio.volume = 0.8;
-      await audio.play();
+      audio.volume = 0.9;
+      
+      // Добавляем обработку загрузки
+      return new Promise<void>((resolve, reject) => {
+        audio.oncanplaythrough = () => {
+          audio.play()
+            .then(() => {
+              audio.onended = () => resolve();
+            })
+            .catch(reject);
+        };
+        
+        audio.onerror = () => reject(new Error('Audio file not found'));
+        audio.load();
+        
+        // Таймаут для перехода к fallback
+        setTimeout(() => reject(new Error('Audio timeout')), 1000);
+      });
     } catch (error) {
       // Fallback на синтез речи если файл не найден
-      if ('speechSynthesis' in window) {
-        speechSynthesis.cancel(); // Останавливаем предыдущую озвучку
-        const utterance = new SpeechSynthesisUtterance(fallbackText);
-        utterance.lang = 'ru-RU';
-        utterance.rate = 0.8;
-        utterance.pitch = 1.0;
-        speechSynthesis.speak(utterance);
-      }
+      return new Promise<void>((resolve) => {
+        if ('speechSynthesis' in window) {
+          speechSynthesis.cancel(); // Останавливаем предыдущую озвучку
+          const utterance = new SpeechSynthesisUtterance(fallbackText);
+          utterance.lang = 'ru-RU';
+          utterance.rate = 0.8;
+          utterance.pitch = 1.0;
+          utterance.volume = 0.9;
+          
+          utterance.onend = () => resolve();
+          utterance.onerror = () => resolve();
+          
+          speechSynthesis.speak(utterance);
+        } else {
+          resolve();
+        }
+      });
     }
   };
 
@@ -194,6 +220,7 @@ const WBPickupApp = () => {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
+      <AudioSetup />
       {/* Top Window Bar */}
       <div className="h-8 bg-gray-800 flex items-center justify-between px-4">
         <div className="flex items-center gap-2">
@@ -388,6 +415,12 @@ const WBPickupApp = () => {
               <span>Система озвучки активна</span>
             </div>
             <div className="flex items-center gap-2">
+              <button 
+                onClick={() => playAudio(audioFiles.welcome, 'Добро пожаловать в пункт выдачи Wildberries')}
+                className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs"
+              >
+                🔊 Тест аудио
+              </button>
               <span>Готов к работе</span>
             </div>
           </div>
