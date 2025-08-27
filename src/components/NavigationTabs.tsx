@@ -11,46 +11,56 @@ interface NavigationTabsProps {
 
 const NavigationTabs = ({ activeTab, onTabChange, onShowAudioUploader }: NavigationTabsProps) => {
   return (
-    <div className="bg-white shadow-sm">
-      <div className="flex max-w-md mx-auto">
-        {['выдача', 'приёмка', 'возврат'].map((tab) => (
-          <button
-            key={tab}
-            onClick={() => onTabChange(tab)}
-            className={`flex-1 py-4 px-2 text-center relative transition-colors ${
-              activeTab === tab 
-                ? 'text-primary font-medium' 
-                : 'text-muted-foreground hover:text-primary/70'
-            }`}
-          >
-            <div className="flex items-center justify-center gap-2">
-              <Icon name={
-                tab === 'выдача' ? 'Package' : 
-                tab === 'приёмка' ? 'PackageCheck' : 
-                'RotateCcw'
-              } size={16} />
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
-            </div>
-            {activeTab === tab && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary animate-scale-in" />
-            )}
-          </button>
-        ))}
+    <div className="bg-white border-b border-gray-200">
+      <div className="flex items-center justify-center gap-8 px-6 py-4">
+        <div 
+          className={`flex flex-col items-center cursor-pointer ${
+            activeTab === 'выдача' ? 'text-purple-600' : 'text-gray-500 hover:text-purple-500'
+          }`}
+          onClick={() => onTabChange('выдача')}
+        >
+          <Icon name="Package" size={24} className="mb-2" />
+          <span className="text-sm font-medium">Выдача</span>
+          {activeTab === 'выдача' && (
+            <div className="w-full h-0.5 bg-purple-600 mt-2" />
+          )}
+        </div>
+        
+        <div 
+          className={`flex flex-col items-center cursor-pointer ${
+            activeTab === 'приёмка' ? 'text-purple-600' : 'text-gray-500 hover:text-purple-500'
+          }`}
+          onClick={() => onTabChange('приёмка')}
+        >
+          <Icon name="Truck" size={24} className="mb-2" />
+          <span className="text-sm font-medium">Приёмка</span>
+        </div>
+        
+        <div 
+          className={`flex flex-col items-center cursor-pointer relative ${
+            activeTab === 'возврат' ? 'text-purple-600' : 'text-gray-500 hover:text-purple-500'
+          }`}
+          onClick={() => onTabChange('возврат')}
+        >
+          <Icon name="RotateCcw" size={24} className="mb-2" />
+          <span className="text-sm font-medium">Возврат</span>
+          <span className="absolute -top-1 -right-2 bg-gray-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+            13
+          </span>
+        </div>
       </div>
-      <div className="flex justify-between items-center p-2 max-w-md mx-auto">
+      
+      {/* Настройка озвучки - скрытая кнопка внизу */}
+      <div className="flex justify-center pb-2">
         <Button
           variant="ghost"
           size="sm"
           onClick={onShowAudioUploader}
-          className="text-xs text-muted-foreground hover:text-primary"
+          className="text-xs text-gray-400 hover:text-purple-600"
         >
           <Icon name="Volume2" size={12} className="mr-1" />
           Настроить озвучку
         </Button>
-        <Badge variant="secondary" className="bg-muted">
-          <Icon name="RotateCcw" size={12} className="mr-1" />
-          13
-        </Badge>
       </div>
     </div>
   );

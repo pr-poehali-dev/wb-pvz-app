@@ -27,22 +27,25 @@ const QRScanner = ({
         </h2>
         
         <div className="relative mb-8">
-          <div className="w-32 h-32 mx-auto bg-gradient-to-br from-primary/20 to-secondary/20 rounded-2xl flex items-center justify-center border-4 border-dashed border-primary/30">
-            {isScanning ? (
-              <div className="animate-pulse">
-                <Icon name="Scan" size={40} className="text-primary animate-pulse" />
+          {isScanning ? (
+            <div className="w-40 h-40 mx-auto relative">
+              <img 
+                src="https://cdn.poehali.dev/files/b7ad8c94-8898-490e-9188-8c8df30b8fcd.png" 
+                alt="QR Scanner" 
+                className="w-full h-full object-contain animate-pulse"
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
               </div>
-            ) : (
-              <div className="relative">
-                <div className="w-16 h-16 bg-primary/10 rounded-lg flex items-center justify-center">
-                  <Icon name="QrCode" size={24} className="text-primary" />
-                </div>
-                <div className="absolute -top-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                  <div className="w-3 h-3 bg-green-300 rounded-full animate-pulse" />
-                </div>
-              </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <img 
+              src="https://cdn.poehali.dev/files/b7ad8c94-8898-490e-9188-8c8df30b8fcd.png" 
+              alt="QR Scanner" 
+              className="w-40 h-40 mx-auto object-contain cursor-pointer hover:scale-105 transition-transform"
+              onClick={onQRScan}
+            />
+          )}
         </div>
 
         <Button 

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Icon from '@/components/ui/icon';
 import Header from '@/components/Header';
+import Sidebar from '@/components/Sidebar';
 import NavigationTabs from '@/components/NavigationTabs';
 import QRScanner from '@/components/QRScanner';
 import OrderCard from '@/components/OrderCard';
@@ -106,52 +107,78 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-accent/20">
-      {/* Header */}
-      <Header />
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Sidebar */}
+      <Sidebar />
 
-      {/* Navigation Tabs */}
-      <NavigationTabs 
-        activeTab={activeTab}
-        onTabChange={handleTabChange}
-        onShowAudioUploader={() => setShowAudioUploader(true)}
-      />
-
-      {/* Sound Indicator */}
-      {isSpeaking && (
-        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 bg-primary text-white px-4 py-2 rounded-full shadow-lg z-50 flex items-center gap-2 animate-fade-in">
-          <Icon name="Volume2" size={16} />
-          <span className="text-sm">Озвучка...</span>
+      {/* Main content area */}
+      <div className="flex-1 flex flex-col">
+        {/* Header with menu icons and install button */}
+        <div className="bg-white border-b border-gray-200 px-6 py-3">
+          <div className="flex items-center justify-between">
+            {/* Left menu icons */}
+            <div className="flex items-center gap-4">
+              <Icon name="Menu" size={20} className="text-gray-600" />
+              <Icon name="FileText" size={20} className="text-gray-600" />
+              <Icon name="Search" size={20} className="text-gray-600" />
+            </div>
+            
+            {/* Right side icons and button */}
+            <div className="flex items-center gap-4">
+              <Icon name="Users" size={20} className="text-gray-600" />
+              <Icon name="Moon" size={20} className="text-gray-600" />
+              <Icon name="MessageCircle" size={20} className="text-gray-600" />
+              <button className="bg-green-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm">
+                <Icon name="Download" size={16} />
+                Установить версию
+              </button>
+            </div>
+          </div>
         </div>
-      )}
 
-      {/* Main Content */}
-      <div className="p-6 max-w-md mx-auto">
-        {activeTab === 'выдача' && (
-          <div className="space-y-6">
-            {/* QR Scanner Section */}
-            <QRScanner 
-              phoneNumber={phoneNumber}
-              isScanning={isScanning}
-              onPhoneNumberChange={setPhoneNumber}
-              onQRScan={handleQRScan}
-              onPhoneSubmit={handlePhoneSubmit}
-            />
+        {/* Navigation Tabs */}
+        <NavigationTabs 
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          onShowAudioUploader={() => setShowAudioUploader(true)}
+        />
 
-            {/* Current Order */}
-            {currentOrder && (
-              <OrderCard 
-                currentOrder={currentOrder}
-                orderStep={orderStep}
-                onProductScan={handleProductScan}
-                onPayment={handlePayment}
-              />
-            )}
+        {/* Sound Indicator */}
+        {isSpeaking && (
+          <div className="fixed top-20 left-1/2 transform -translate-x-1/2 bg-primary text-white px-4 py-2 rounded-full shadow-lg z-50 flex items-center gap-2 animate-fade-in">
+            <Icon name="Volume2" size={16} />
+            <span className="text-sm">Озвучка...</span>
           </div>
         )}
 
-        {/* Tab Content for other tabs */}
-        <TabContent activeTab={activeTab} />
+        {/* Main Content */}
+        <div className="flex-1 p-6">
+          {activeTab === 'выдача' && (
+            <div className="max-w-2xl mx-auto space-y-6">
+              {/* QR Scanner Section */}
+              <QRScanner 
+                phoneNumber={phoneNumber}
+                isScanning={isScanning}
+                onPhoneNumberChange={setPhoneNumber}
+                onQRScan={handleQRScan}
+                onPhoneSubmit={handlePhoneSubmit}
+              />
+
+              {/* Current Order */}
+              {currentOrder && (
+                <OrderCard 
+                  currentOrder={currentOrder}
+                  orderStep={orderStep}
+                  onProductScan={handleProductScan}
+                  onPayment={handlePayment}
+                />
+              )}
+            </div>
+          )}
+
+          {/* Tab Content for other tabs */}
+          <TabContent activeTab={activeTab} />
+        </div>
       </div>
 
       {/* Audio element для воспроизведения файлов */}
