@@ -11,6 +11,32 @@ interface AudioUploaderProps {
 const AudioUploader = ({ onClose }: AudioUploaderProps) => {
   const [uploadStatus, setUploadStatus] = useState<Record<string, 'pending' | 'uploaded'>>({});
 
+  // Проверяем при загрузке, какие файлы уже есть
+  React.useEffect(() => {
+    const checkExistingFiles = () => {
+      const newStatus: Record<string, 'pending' | 'uploaded'> = {};
+      
+      // Проверяем основные файлы
+      audioFiles.forEach(file => {
+        if (localStorage.getItem(`audio_${file.id}`)) {
+          newStatus[file.id] = 'uploaded';
+        }
+      });
+      
+      // Проверяем файлы ячеек
+      cellFiles.forEach(file => {
+        const cellNumber = file.id.replace('cell-', '');
+        if (localStorage.getItem(`audio_cells_${cellNumber}`)) {
+          newStatus[file.id] = 'uploaded';
+        }
+      });
+      
+      setUploadStatus(newStatus);
+    };
+    
+    checkExistingFiles();
+  }, []);
+
   const audioFiles = [
     { id: 'discount', name: 'discount.mp3', label: 'Товары со скидкой проверьте ВБ кошелек' },
     { id: 'camera', name: 'camera.mp3', label: 'Проверьте товар под камерой' },
@@ -24,12 +50,32 @@ const AudioUploader = ({ onClose }: AudioUploaderProps) => {
     folder: 'cells'
   }));
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>, fileId: string, folder?: string) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, fileId: string, folder?: string) => {
     const file = event.target.files?.[0];
     if (file && file.type.startsWith('audio/')) {
-      // В реальном приложении здесь был бы код для загрузки файла
-      console.log(`Загружаем файл ${file.name} для ${fileId}`);
-      setUploadStatus(prev => ({ ...prev, [fileId]: 'uploaded' }));
+      try {
+        // Создаём URL для локального воспроизведения
+        const audioUrl = URL.createObjectURL(file);
+        
+        // Определяем ключ для localStorage
+        const storageKey = folder ? `audio_${folder}_${fileId.replace(`${folder}-`, '')}` : `audio_${fileId}`;
+        
+        // Сохраняем файл как base64 в localStorage для постоянного хранения
+        const reader = new FileReader();
+        reader.onload = () => {
+          const base64 = reader.result as string;
+          localStorage.setItem(storageKey, base64);
+          console.log(`✅ Файл ${file.name} сохранён для ${fileId}`);
+          
+          // Также сохраняем temporary URL для немедленного использования
+          localStorage.setItem(`${storageKey}_url`, audioUrl);
+        };
+        reader.readAsDataURL(file);
+        
+        setUploadStatus(prev => ({ ...prev, [fileId]: 'uploaded' }));
+      } catch (error) {
+        console.error('Ошибка загрузки файла:', error);
+      }
     }
   };
 

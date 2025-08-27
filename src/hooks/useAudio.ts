@@ -42,27 +42,38 @@ export const useAudio = () => {
   // Функция для воспроизведения аудиофайлов
   const playAudioFile = useCallback(async (audioType: 'cell' | 'discount' | 'camera' | 'rate', cellNumber?: number) => {
     try {
-      // Определяем путь к аудиофайлу
+      // Сначала проверяем, есть ли загруженный файл в localStorage
       let audioPath = '';
-      let fallbackText = '';
+      let storageKey = '';
       
       switch (audioType) {
         case 'cell':
+          storageKey = `audio_cells_${cellNumber || 1}`;
           audioPath = `/audio/cells/${cellNumber || 1}.mp3`;
-          fallbackText = `Ячейка номер ${cellNumber || 1}`;
           break;
         case 'discount':
+          storageKey = 'audio_discount';
           audioPath = '/audio/discount.mp3';
-          fallbackText = 'Товары со скидкой! Проверьте ВБ кошелёк!';
           break;
         case 'camera':
+          storageKey = 'audio_camera';
           audioPath = '/audio/camera.mp3';
-          fallbackText = 'Проверьте товар под камерой!';
           break;
         case 'rate':
+          storageKey = 'audio_rate';
           audioPath = '/audio/rate.mp3';
-          fallbackText = 'Оцените наш пункт выдачи в приложении ВБ!';
           break;
+      }
+
+      // Проверяем, есть ли загруженный файл
+      const uploadedFile = localStorage.getItem(storageKey);
+      if (uploadedFile) {
+        // Используем загруженный файл
+        audioPath = uploadedFile;
+        console.log(`🎵 Воспроизводим загруженный файл для ${audioType}`);
+      } else {
+        console.warn(`⚠️ Файл для ${audioType} не загружен. Используйте "Настроить озвучку"`);
+        return;
       }
 
       // Попытка воспроизвести аудиофайл
