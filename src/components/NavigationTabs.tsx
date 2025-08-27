@@ -35,6 +35,9 @@ const NavigationTabs = ({ activeTab, onTabChange, onShowAudioUploader, onShowTes
         >
           <Icon name="Truck" size={24} className="mb-2" />
           <span className="text-sm font-medium">Приёмка</span>
+          {activeTab === 'приёмка' && (
+            <div className="w-full h-0.5 bg-purple-600 mt-2" />
+          )}
         </div>
         
         <div 
@@ -45,9 +48,12 @@ const NavigationTabs = ({ activeTab, onTabChange, onShowAudioUploader, onShowTes
         >
           <Icon name="RotateCcw" size={24} className="mb-2" />
           <span className="text-sm font-medium">Возврат</span>
-          <span className="absolute -top-1 -right-2 bg-gray-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+          <Badge variant="secondary" className="absolute -top-1 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center p-0">
             13
-          </span>
+          </Badge>
+          {activeTab === 'возврат' && (
+            <div className="w-full h-0.5 bg-purple-600 mt-2" />
+          )}
         </div>
       </div>
       

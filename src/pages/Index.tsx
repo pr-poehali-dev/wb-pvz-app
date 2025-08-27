@@ -234,7 +234,7 @@ const Index = () => {
           )}
 
           {/* Tab Content for other tabs */}
-          <TabContent activeTab={activeTab} />
+          <TabContent activeTab={activeTab} onStartScanning={() => setIsScanning(true)} />
         </div>
       </div>
 

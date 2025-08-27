@@ -4,9 +4,10 @@ import Icon from '@/components/ui/icon';
 
 interface TabContentProps {
   activeTab: string;
+  onStartScanning?: () => void;
 }
 
-const TabContent = ({ activeTab }: TabContentProps) => {
+const TabContent = ({ activeTab, onStartScanning }: TabContentProps) => {
   if (activeTab === 'приёмка') {
     return (
       <div className="text-center py-12">
@@ -15,8 +16,9 @@ const TabContent = ({ activeTab }: TabContentProps) => {
         <p className="text-muted-foreground mb-4">
           Сканируйте QR-коды поступающих товаров
         </p>
-        <Button className="bg-primary text-white" disabled>
-          В разработке
+        <Button className="bg-primary text-white" onClick={onStartScanning}>
+          <Icon name="QrCode" size={16} className="mr-2" />
+          Начать сканирование
         </Button>
       </div>
     );
@@ -30,8 +32,9 @@ const TabContent = ({ activeTab }: TabContentProps) => {
         <p className="text-muted-foreground mb-4">
           Обработка возвратов клиентов
         </p>
-        <Button className="bg-primary text-white" disabled>
-          В разработке
+        <Button className="bg-primary text-white" onClick={onStartScanning}>
+          <Icon name="RotateCcw" size={16} className="mr-2" />
+          Обработать возврат
         </Button>
       </div>
     );
