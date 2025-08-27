@@ -42,66 +42,92 @@ export const useAudio = () => {
   // Функция для воспроизведения аудиофайлов
   const playAudioFile = useCallback(async (audioType: 'cell' | 'discount' | 'camera' | 'rate', cellNumber?: number) => {
     try {
-      // Сначала проверяем, есть ли загруженный файл в localStorage
-      let audioPath = '';
+      // Определяем ключ для localStorage
       let storageKey = '';
       
       switch (audioType) {
         case 'cell':
           storageKey = `audio_cells_${cellNumber || 1}`;
-          audioPath = `/audio/cells/${cellNumber || 1}.mp3`;
           break;
         case 'discount':
           storageKey = 'audio_discount';
-          audioPath = '/audio/discount.mp3';
           break;
         case 'camera':
           storageKey = 'audio_camera';
-          audioPath = '/audio/camera.mp3';
           break;
         case 'rate':
           storageKey = 'audio_rate';
-          audioPath = '/audio/rate.mp3';
           break;
       }
 
-      // Проверяем, есть ли загруженный файл
+      // Проверяем, есть ли загруженный файл в localStorage
       const uploadedFile = localStorage.getItem(storageKey);
-      if (uploadedFile) {
-        // Используем загруженный файл
-        audioPath = uploadedFile;
-        console.log(`🎵 Воспроизводим загруженный файл для ${audioType}`);
-      } else {
-        console.warn(`⚠️ Файл для ${audioType} не загружен. Используйте "Настроить озвучку"`);
+      if (!uploadedFile) {
+        console.warn(`⚠️ Аудиофайл для "${audioType}" не загружен. Откройте "Настроить озвучку" и загрузите файлы.`);
+        
+        // Показываем уведомление пользователю
+        const notification = document.createElement('div');
+        notification.innerHTML = `
+          <div style="position: fixed; top: 20px; right: 20px; background: #f59e0b; color: white; padding: 12px 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 9999; font-family: system-ui; font-size: 14px; max-width: 300px;">
+            <div style="font-weight: 600; margin-bottom: 4px;">🔊 Озвучка не найдена</div>
+            <div>Загрузите аудиофайл для "${audioType}" в настройках</div>
+          </div>
+        `;
+        document.body.appendChild(notification);
+        setTimeout(() => document.body.removeChild(notification), 3000);
         return;
       }
 
-      // Попытка воспроизвести аудиофайл
+      console.log(`🎵 Воспроизводим загруженный файл: ${audioType}${cellNumber ? ` (ячейка ${cellNumber})` : ''}`);
+
+      // Воспроизводим загруженный файл из localStorage
       if (audioRef.current) {
-        audioRef.current.src = audioPath;
-        audioRef.current.oncanplaythrough = () => {
-          if (audioRef.current) {
-            setIsSpeaking(true);
-            audioRef.current.play().catch(() => {
-              setIsSpeaking(false);
-              console.warn(`Не удалось воспроизвести ${audioPath}. Загрузите оригинальные аудиофайлы через "Настроить озвучку"`);
-            });
-          }
-        };
-        audioRef.current.onended = () => setIsSpeaking(false);
-        audioRef.current.onerror = () => {
+        // Устанавливаем src как data URL из localStorage
+        audioRef.current.src = uploadedFile;
+        
+        const playPromise = audioRef.current.play();
+        setIsSpeaking(true);
+
+        if (playPromise !== undefined) {
+          playPromise.then(() => {
+            console.log(`✅ Успешно воспроизводим: ${audioType}`);
+          }).catch((error) => {
+            console.error(`❌ Ошибка воспроизведения ${audioType}:`, error);
+            setIsSpeaking(false);
+            
+            // Показываем ошибку пользователю
+            const errorNotification = document.createElement('div');
+            errorNotification.innerHTML = `
+              <div style="position: fixed; top: 20px; right: 20px; background: #dc2626; color: white; padding: 12px 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 9999; font-family: system-ui; font-size: 14px; max-width: 300px;">
+                <div style="font-weight: 600; margin-bottom: 4px;">❌ Ошибка воспроизведения</div>
+                <div>Переместите аудиофайл для "${audioType}"</div>
+              </div>
+            `;
+            document.body.appendChild(errorNotification);
+            setTimeout(() => document.body.removeChild(errorNotification), 3000);
+          });
+        }
+
+        // Обработчики событий
+        audioRef.current.onended = () => {
           setIsSpeaking(false);
-          console.warn(`Аудиофайл ${audioPath} не найден. Загрузите оригинальные файлы через "Настроить озвучку"`);
+          console.log(`🎵 Завершено воспроизведение: ${audioType}`);
         };
-        audioRef.current.load();
+
+        audioRef.current.onerror = (error) => {
+          setIsSpeaking(false);
+          console.error(`❌ Ошибка аудио элемента для ${audioType}:`, error);
+        };
+        
       } else {
-        console.warn('AudioRef недоступен. Проверьте настройки аудио.');
+        console.warn('❌ AudioRef недоступен. Перезагрузите страницу.');
       }
+      
     } catch (error) {
-      console.error('Ошибка воспроизведения аудио:', error);
-      console.warn('Загрузите оригинальные аудиофайлы через "Настроить озвучку"');
+      console.error('❌ Критическая ошибка воспроизведения:', error);
+      setIsSpeaking(false);
     }
-  }, [speak]);
+  }, []);
 
   return {
     audioRef,

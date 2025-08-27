@@ -152,6 +152,91 @@ const AudioUploader = ({ onClose }: AudioUploaderProps) => {
     });
   };
 
+  // Автоматическая загрузка с Mail.ru Cloud (имитация)
+  const handleAutoDownload = async () => {
+    setIsProcessing(true);
+    console.log('🚀 Начинаю автоматическую загрузку с Mail.ru Cloud...');
+    
+    try {
+      // Имитируем загрузку файлов с вашей ссылки
+      const filesToDownload = [
+        { name: 'discount.mp3', type: 'discount' },
+        { name: 'camera.mp3', type: 'camera' },
+        { name: 'rate.mp3', type: 'rate' },
+      ];
+      
+      // Имитируем ячейки
+      for (let i = 1; i <= 10; i++) {
+        filesToDownload.push({ name: `${i}.mp3`, type: 'cell', cellNumber: i });
+      }
+      
+      const processed: ProcessedFile[] = [];
+      
+      for (const fileInfo of filesToDownload) {
+        // Имитируем задержку загрузки
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Создаём пустой аудиофайл как имитацию (в реальности тут был бы fetch)
+        console.log(`📥 Имитация загрузки: ${fileInfo.name}`);
+        
+        const mockMapping = {
+          type: fileInfo.type as 'discount' | 'camera' | 'rate' | 'cell',
+          cellNumber: (fileInfo as any).cellNumber
+        };
+        
+        // Создаём имитацию файла
+        const mockFile = new File([''], fileInfo.name, { type: 'audio/mpeg' });
+        
+        const processedFile: ProcessedFile = {
+          file: mockFile,
+          mapping: mockMapping,
+          status: 'uploaded',
+          displayName: getFunctionDisplayName(mockMapping.type, mockMapping.cellNumber)
+        };
+        
+        processed.push(processedFile);
+        
+        // Сохраняем пустую запись в localStorage (в реальности тут был бы base64 аудио)
+        const storageKey = mockMapping.type === 'cell' 
+          ? `audio_cells_${mockMapping.cellNumber}` 
+          : `audio_${mockMapping.type}`;
+        
+        localStorage.setItem(storageKey, 'data:audio/mpeg;base64,placeholder');
+        console.log(`✅ Имитация сохранения: ${storageKey}`);
+      }
+      
+      setProcessedFiles(processed);
+      
+      // Обновляем статус
+      const newStatus = {
+        discount: 'uploaded' as const,
+        camera: 'uploaded' as const,
+        rate: 'uploaded' as const,
+        cells_folder: 'uploaded' as const
+      };
+      
+      setUploadStatus(newStatus);
+      
+      console.log('🎉 Имитация автозагрузки завершена!');
+      
+      // Показываем уведомление об имитации
+      const notification = document.createElement('div');
+      notification.innerHTML = `
+        <div style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #059669; color: white; padding: 16px 20px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); z-index: 9999; font-family: system-ui; font-size: 14px; max-width: 400px; text-align: center;">
+          <div style="font-weight: 600; margin-bottom: 8px;">🎉 Автозагрузка завершена!</div>
+          <div>⚠️ ДЕМО: Реальные файлы нужно загрузить вручную выше</div>
+        </div>
+      `;
+      document.body.appendChild(notification);
+      setTimeout(() => document.body.removeChild(notification), 5000);
+      
+    } catch (error) {
+      console.error('❌ Ошибка автозагрузки:', error);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   // Очистка всех аудиофайлов
   const clearAllAudio = () => {
     Object.keys(localStorage).forEach(key => {
@@ -225,17 +310,53 @@ const AudioUploader = ({ onClose }: AudioUploaderProps) => {
             </div>
           </div>
 
-          {/* Основная кнопка загрузки */}
-          <div className="mb-6">
+          {/* Способы загрузки */}
+          <div className="mb-6 space-y-4">
+            {/* Автоматическая загрузка */}
+            <div className="p-6 border-2 border-dashed border-green-300 rounded-lg bg-gradient-to-br from-green-50 to-emerald-50 text-center">
+              <div className="flex flex-col items-center gap-4">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                  <Icon name="Download" size={32} className="text-green-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-green-800">Автоматическая загрузка</h3>
+                  <p className="text-sm text-green-600 mt-1">
+                    Попробуем автоматически загрузить файлы с Mail.ru Cloud
+                  </p>
+                </div>
+                <Button
+                  onClick={handleAutoDownload}
+                  disabled={isProcessing}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  {isProcessing ? (
+                    <>
+                      <Icon name="Loader2" size={16} className="animate-spin mr-2" />
+                      Загружаю...
+                    </>
+                  ) : (
+                    <>
+                      <Icon name="Download" size={16} className="mr-2" />
+                      Загрузить автоматически
+                    </>
+                  )}
+                </Button>
+                <p className="text-xs text-green-700 max-w-md">
+                  ⚠️ Демо-функция: Имитирует загрузку из облака. Для реальной работы используйте ручную загрузку ниже.
+                </p>
+              </div>
+            </div>
+
+            {/* Ручная загрузка */}
             <div className="p-6 border-2 border-dashed border-purple-300 rounded-lg bg-gradient-to-br from-purple-50 to-pink-50 text-center">
               <div className="flex flex-col items-center gap-4">
                 <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center">
                   <Icon name="Upload" size={32} className="text-purple-600" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-purple-800">Загрузить папку с аудио</h3>
+                  <h3 className="text-lg font-semibold text-purple-800">Ручная загрузка папки</h3>
                   <p className="text-sm text-purple-600 mt-1">
-                    Выберите все файлы из папки - система сама всё распознает!
+                    Скачайте файлы с Mail.ru Cloud и выберите здесь
                   </p>
                 </div>
                 <Input
@@ -246,6 +367,10 @@ const AudioUploader = ({ onClose }: AudioUploaderProps) => {
                   disabled={isProcessing}
                   className="max-w-xs"
                 />
+                <div className="text-xs text-purple-700 max-w-md space-y-1">
+                  <p>📁 <a href="https://cloud.mail.ru/public/bsFp/vkbT876fD" target="_blank" rel="noopener noreferrer" className="underline font-medium">Скачать архив с Mail.ru Cloud</a></p>
+                  <p>📥 Распакуйте и выберите все файлы (Ctrl+A)</p>
+                </div>
                 {isProcessing && (
                   <div className="flex items-center gap-2 text-purple-600">
                     <Icon name="Loader2" size={16} className="animate-spin" />
