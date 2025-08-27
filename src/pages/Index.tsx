@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import Icon from '@/components/ui/icon';
+import AudioUploader from '@/components/AudioUploader';
 
 interface Order {
   id: string;
@@ -22,6 +23,8 @@ const Index = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isProductScanned, setIsProductScanned] = useState(false);
   const [orderStep, setOrderStep] = useState<'found' | 'scanned' | 'paid'>('found');
+  const [showAudioUploader, setShowAudioUploader] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
   
   // Web Speech API для озвучки
   const speak = useCallback((text: string, priority = false) => {
@@ -57,6 +60,63 @@ const Index = () => {
       }, 3000);
     }
   }, []);
+
+  // Функция для воспроизведения аудиофайлов
+  const playAudioFile = useCallback(async (audioType: 'cell' | 'discount' | 'camera' | 'rate', cellNumber?: number) => {
+    try {
+      // Определяем путь к аудиофайлу
+      let audioPath = '';
+      let fallbackText = '';
+      
+      switch (audioType) {
+        case 'cell':
+          audioPath = `/audio/cells/${cellNumber || 1}.mp3`;
+          fallbackText = `Ячейка номер ${cellNumber || 1}`;
+          break;
+        case 'discount':
+          audioPath = '/audio/discount.mp3';
+          fallbackText = 'Товары со скидкой! Проверьте ВБ кошелёк!';
+          break;
+        case 'camera':
+          audioPath = '/audio/camera.mp3';
+          fallbackText = 'Проверьте товар под камерой!';
+          break;
+        case 'rate':
+          audioPath = '/audio/rate.mp3';
+          fallbackText = 'Оцените наш пункт выдачи в приложении ВБ!';
+          break;
+      }
+
+      // Попытка воспроизвести аудиофайл
+      if (audioRef.current) {
+        audioRef.current.src = audioPath;
+        audioRef.current.oncanplaythrough = () => {
+          if (audioRef.current) {
+            setIsSpeaking(true);
+            audioRef.current.play().catch(() => {
+              // Если не удалось воспроизвести файл, используем Web Speech API
+              setIsSpeaking(false);
+              speak(fallbackText, true);
+            });
+          }
+        };
+        audioRef.current.onended = () => setIsSpeaking(false);
+        audioRef.current.onerror = () => {
+          // Если ошибка загрузки файла, используем Web Speech API
+          setIsSpeaking(false);
+          speak(fallbackText, true);
+        };
+        audioRef.current.load();
+      } else {
+        // Если нет ref, используем Web Speech API
+        speak(fallbackText, true);
+      }
+    } catch (error) {
+      // В случае любой ошибки используем Web Speech API
+      console.error('Ошибка воспроизведения аудио:', error);
+      speak(fallbackText, true);
+    }
+  }, [speak]);
 
   // Генерация случайных заказов
   const generateRandomOrder = (): Order => {
@@ -101,12 +161,12 @@ const Index = () => {
       setCurrentOrder(order);
       setIsScanning(false);
       
-      // Озвучка номера ячейки с высоким приоритетом
-      speak(`Ячейка номер ${order.cellNumber}`, true);
+      // Озвучка номера ячейки
+      playAudioFile('cell', order.cellNumber);
       
       // Через 3 секунды озвучка про скидку
       setTimeout(() => {
-        speak('Товары со скидкой! Проверьте ВБ кошелёк!');
+        playAudioFile('discount');
       }, 3000);
       
     }, 2500);
@@ -119,7 +179,7 @@ const Index = () => {
     setOrderStep('scanned');
     
     // Озвучка про проверку под камерой
-    speak('Проверьте товар под камерой!', true);
+    playAudioFile('camera');
     
     // Обновляем статус заказа
     setCurrentOrder(prev => prev ? {...prev, status: 'processing'} : null);
@@ -132,7 +192,7 @@ const Index = () => {
     
     // Симуляция обработки оплаты
     setTimeout(() => {
-      speak('Оцените наш пункт выдачи в приложении ВБ!', true);
+      playAudioFile('rate');
       
       // Через 4 секунды очищаем заказ
       setTimeout(() => {
@@ -153,11 +213,11 @@ const Index = () => {
       setIsProductScanned(false);
       
       // Озвучка номера ячейки
-      speak(`Ячейка номер ${order.cellNumber}`, true);
+      playAudioFile('cell', order.cellNumber);
       
       // Через 3 секунды озвучка про скидку
       setTimeout(() => {
-        speak('Товары со скидкой! Проверьте ВБ кошелёк!');
+        playAudioFile('discount');
       }, 3000);
     }
   };
@@ -224,7 +284,16 @@ const Index = () => {
             </button>
           ))}
         </div>
-        <div className="flex justify-end p-2 max-w-md mx-auto">
+        <div className="flex justify-between items-center p-2 max-w-md mx-auto">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowAudioUploader(true)}
+            className="text-xs text-muted-foreground hover:text-primary"
+          >
+            <Icon name="Volume2" size={12} className="mr-1" />
+            Настроить озвучку
+          </Button>
           <Badge variant="secondary" className="bg-muted">
             <Icon name="RotateCcw" size={12} className="mr-1" />
             13
@@ -437,6 +506,14 @@ const Index = () => {
           </div>
         )}
       </div>
+
+      {/* Audio element для воспроизведения файлов */}
+      <audio ref={audioRef} preload="none" />
+
+      {/* Модальное окно загрузки аудио */}
+      {showAudioUploader && (
+        <AudioUploader onClose={() => setShowAudioUploader(false)} />
+      )}
     </div>
   );
 };
