@@ -10,9 +10,6 @@ interface AudioUploaderProps {
   onClose: () => void;
 }
 
-// Импортируем компонент CloudAudioLoader
-import CloudAudioLoader from './CloudAudioLoader';
-
 interface ProcessedFile {
   file: File;
   mapping: AudioMapping;
