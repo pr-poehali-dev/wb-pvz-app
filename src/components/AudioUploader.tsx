@@ -58,17 +58,27 @@ const AudioUploader = ({ onClose }: AudioUploaderProps) => {
         const audioUrl = URL.createObjectURL(file);
         
         // Определяем ключ для localStorage
-        const storageKey = folder ? `audio_${folder}_${fileId.replace(`${folder}-`, '')}` : `audio_${fileId}`;
+        let storageKey;
+        if (folder === 'cells') {
+          const cellNumber = fileId.replace('cell-', '');
+          storageKey = `audio_cells_${cellNumber}`;
+        } else {
+          storageKey = `audio_${fileId}`;
+        }
         
         // Сохраняем файл как base64 в localStorage для постоянного хранения
         const reader = new FileReader();
         reader.onload = () => {
           const base64 = reader.result as string;
           localStorage.setItem(storageKey, base64);
-          console.log(`✅ Файл ${file.name} сохранён для ${fileId}`);
+          console.log(`✅ Файл ${file.name} сохранён с ключом: ${storageKey}`);
           
           // Также сохраняем temporary URL для немедленного использования
           localStorage.setItem(`${storageKey}_url`, audioUrl);
+          
+          // Проверяем что сохранилось
+          const saved = localStorage.getItem(storageKey);
+          console.log(`🔍 Проверка сохранения: ${saved ? 'УСПЕШНО' : 'ОШИБКА'}`);
         };
         reader.readAsDataURL(file);
         
@@ -156,6 +166,20 @@ const AudioUploader = ({ onClose }: AudioUploaderProps) => {
           <div className="flex gap-2 mt-6">
             <Button onClick={onClose} className="flex-1">
               Готово
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                console.log('=== ПРОВЕРКА СОХРАНЁННЫХ ФАЙЛОВ ===');
+                Object.keys(localStorage).forEach(key => {
+                  if (key.startsWith('audio_')) {
+                    console.log(`📁 ${key}: ${localStorage.getItem(key)?.slice(0, 50)}...`);
+                  }
+                });
+                console.log('=== КОНЕЦ ПРОВЕРКИ ===');
+              }}
+            >
+              Проверить файлы
             </Button>
             <Button variant="outline" onClick={onClose}>
               Отмена
