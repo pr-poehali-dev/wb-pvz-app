@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
