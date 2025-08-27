@@ -23,13 +23,18 @@ const AudioUploader = ({ onClose }: AudioUploaderProps) => {
         }
       });
       
-      // Проверяем файлы ячеек
-      cellFiles.forEach(file => {
-        const cellNumber = file.id.replace('cell-', '');
-        if (localStorage.getItem(`audio_cells_${cellNumber}`)) {
-          newStatus[file.id] = 'uploaded';
+      // Проверяем файлы ячеек (проверяем несколько для определения статуса папки)
+      let cellsCount = 0;
+      for (let i = 1; i <= 50; i++) {
+        if (localStorage.getItem(`audio_cells_${i}`)) {
+          cellsCount++;
         }
-      });
+      }
+      
+      if (cellsCount > 0) {
+        newStatus['cells_folder'] = 'uploaded';
+        console.log(`📁 Найдено ${cellsCount} файлов ячеек`);
+      }
       
       setUploadStatus(newStatus);
     };
@@ -43,12 +48,43 @@ const AudioUploader = ({ onClose }: AudioUploaderProps) => {
     { id: 'rate', name: 'rate.mp3', label: 'Оцените наш пункт выдачи в приложении' },
   ];
 
-  const cellFiles = Array.from({ length: 50 }, (_, i) => ({
-    id: `cell-${i + 1}`,
-    name: `${i + 1}.mp3`,
-    label: `Ячейка номер ${i + 1}`,
-    folder: 'cells'
-  }));
+  const handleCellsFolderUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
+
+    console.log(`📁 Начинается загрузка ${files.length} файлов ячеек`);
+    const audioFiles = Array.from(files).filter(file => file.type.startsWith('audio/'));
+    let processedCount = 0;
+
+    for (const file of audioFiles) {
+      try {
+        const fileName = file.name.replace(/\.(mp3|wav|ogg)$/i, '');
+        const cellNumber = fileName;
+        
+        const reader = new FileReader();
+        reader.onload = () => {
+          const base64 = reader.result as string;
+          const storageKey = `audio_cells_${cellNumber}`;
+          localStorage.setItem(storageKey, base64);
+          console.log(`✅ Ячейка ${cellNumber} сохранена (${file.name})`);
+          
+          processedCount++;
+          if (processedCount === audioFiles.length) {
+            setUploadStatus(prev => ({ ...prev, 'cells_folder': 'uploaded' }));
+            console.log(`🎉 Папка ячеек загружена! Обработано файлов: ${processedCount}`);
+          }
+        };
+        reader.onerror = () => {
+          console.error(`❌ Ошибка чтения файла ${file.name}`);
+          processedCount++;
+        };
+        reader.readAsDataURL(file);
+      } catch (error) {
+        console.error(`Ошибка обработки файла ${file.name}:`, error);
+        processedCount++;
+      }
+    }
+  };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, fileId: string, folder?: string) => {
     const file = event.target.files?.[0];
@@ -138,27 +174,37 @@ const AudioUploader = ({ onClose }: AudioUploaderProps) => {
               </div>
             </div>
 
-            {/* Аудиофайлы ячеек */}
+            {/* Аудиофайлы ячеек - загрузка папкой */}
             <div>
-              <h3 className="font-medium mb-3">Номера ячеек (1-50)</h3>
-              <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto">
-                {cellFiles.slice(0, 10).map(file => (
-                  <div key={file.id} className="flex items-center gap-3 p-2 border rounded text-sm">
-                    <div className="flex-1">{file.label}</div>
-                    <Input
-                      type="file"
-                      accept="audio/*"
-                      onChange={(e) => handleFileUpload(e, file.id, file.folder)}
-                      className="w-32 h-8 text-xs"
-                    />
-                    {uploadStatus[file.id] === 'uploaded' && (
-                      <Icon name="CheckCircle" className="text-green-500" size={16} />
-                    )}
+              <h3 className="font-medium mb-3">Номера ячеек (загрузка папки)</h3>
+              <div className="p-4 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
+                <div className="text-center">
+                  <Icon name="FolderOpen" size={32} className="text-gray-400 mx-auto mb-2" />
+                  <div className="mb-3">
+                    <div className="font-medium text-sm">Загрузите папку с файлами ячеек</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Выберите все MP3-файлы из папки cells/ сразу
+                    </div>
                   </div>
-                ))}
+                  <Input
+                    type="file"
+                    accept="audio/*"
+                    multiple
+                    onChange={handleCellsFolderUpload}
+                    className="w-full mb-2"
+                  />
+                  {uploadStatus['cells_folder'] === 'uploaded' && (
+                    <div className="flex items-center justify-center gap-2 text-green-600 text-sm">
+                      <Icon name="CheckCircle" size={16} />
+                      Папка ячеек загружена успешно
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="text-xs text-muted-foreground mt-2">
-                Показаны первые 10 ячеек. Добавьте файлы для всех нужных ячеек.
+                💡 Совет: Выберите все файлы из папки cells одновременно (Ctrl+A в проводнике)
+                <br />
+                Названия файлов должны соответствовать номерам ячеек: 1.mp3, 2.mp3, 3.mp3 и т.д.
               </div>
             </div>
           </div>
