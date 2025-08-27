@@ -1,274 +1,40 @@
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import Icon from '@/components/ui/icon';
-import { categorizeAudioFiles, getFunctionDisplayName, type AudioMapping } from '@/utils/audioRecognition';
 import CloudAudioLoader from './CloudAudioLoader';
+
+// Импорт декомпозированных компонентов
+import FileStatusGrid from './AudioUploader/FileStatusGrid';
+import ProcessedFilesList from './AudioUploader/ProcessedFilesList';
+import UnrecognizedFilesList from './AudioUploader/UnrecognizedFilesList';
+import UploadInstructions from './AudioUploader/UploadInstructions';
+import UploadMethods from './AudioUploader/UploadMethods';
+import { useAudioUploader } from './AudioUploader/useAudioUploader';
 
 interface AudioUploaderProps {
   onClose: () => void;
 }
 
-interface ProcessedFile {
-  file: File;
-  mapping: AudioMapping;
-  status: 'pending' | 'uploaded' | 'failed';
-  displayName: string;
-}
-
 const AudioUploader = ({ onClose }: AudioUploaderProps) => {
-  const [uploadStatus, setUploadStatus] = useState<Record<string, 'pending' | 'uploaded'>>({});
-  const [processedFiles, setProcessedFiles] = useState<ProcessedFile[]>([]);
-  const [unrecognizedFiles, setUnrecognizedFiles] = useState<File[]>([]);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [showCloudLoader, setShowCloudLoader] = useState(false);
+  const {
+    uploadStatus,
+    processedFiles,
+    unrecognizedFiles,
+    isProcessing,
+    showCloudLoader,
+    setShowCloudLoader,
+    handleBulkUpload,
+    checkExistingFiles,
+    clearAllAudio,
+    runDiagnostics,
+    updateStatusAfterCloudLoad
+  } = useAudioUploader();
 
   // Проверяем при загрузке, какие файлы уже есть
-  React.useEffect(() => {
-    const checkExistingFiles = () => {
-      const newStatus: Record<string, 'pending' | 'uploaded'> = {};
-      
-      // Проверяем основные файлы
-      const basicFiles = ['discount', 'camera', 'rate'];
-      basicFiles.forEach(fileType => {
-        if (localStorage.getItem(`audio_${fileType}`)) {
-          newStatus[fileType] = 'uploaded';
-        }
-      });
-      
-      // Проверяем файлы ячеек
-      let cellsCount = 0;
-      for (let i = 1; i <= 100; i++) {
-        if (localStorage.getItem(`audio_cells_${i}`)) {
-          cellsCount++;
-        }
-      }
-      
-      if (cellsCount > 0) {
-        newStatus['cells_folder'] = 'uploaded';
-        console.log(`📁 Найдено ${cellsCount} файлов ячеек`);
-      }
-      
-      setUploadStatus(newStatus);
-    };
-    
+  useEffect(() => {
     checkExistingFiles();
   }, []);
-
-  // Автоматическая загрузка всей папки с аудио
-  const handleBulkUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
-
-    setIsProcessing(true);
-    console.log(`📁 Начинается автоматическая обработка ${files.length} файлов`);
-
-    const { recognized, unrecognized } = categorizeAudioFiles(Array.from(files));
-    
-    // Подготавливаем обработанные файлы
-    const processed: ProcessedFile[] = recognized.map(({ file, mapping }) => ({
-      file,
-      mapping,
-      status: 'pending' as const,
-      displayName: getFunctionDisplayName(
-        mapping.type,
-        mapping.cellNumber
-      )
-    }));
-
-    setProcessedFiles(processed);
-    setUnrecognizedFiles(unrecognized);
-
-    console.log(`✅ Распознано: ${recognized.length} файлов`);
-    console.log(`❓ Не распознано: ${unrecognized.length} файлов`);
-
-    // Загружаем распознанные файлы
-    let uploadedCount = 0;
-    for (const processedFile of processed) {
-      try {
-        await saveAudioFile(processedFile);
-        uploadedCount++;
-        
-        // Обновляем статус файла
-        setProcessedFiles(prev => 
-          prev.map(pf => 
-            pf.file === processedFile.file 
-              ? { ...pf, status: 'uploaded' }
-              : pf
-          )
-        );
-      } catch (error) {
-        console.error(`Ошибка загрузки ${processedFile.file.name}:`, error);
-        setProcessedFiles(prev => 
-          prev.map(pf => 
-            pf.file === processedFile.file 
-              ? { ...pf, status: 'failed' }
-              : pf
-          )
-        );
-      }
-    }
-
-    // Обновляем общий статус
-    const newStatus = { ...uploadStatus };
-    if (recognized.some(r => r.mapping.type === 'discount')) newStatus['discount'] = 'uploaded';
-    if (recognized.some(r => r.mapping.type === 'camera')) newStatus['camera'] = 'uploaded';
-    if (recognized.some(r => r.mapping.type === 'rate')) newStatus['rate'] = 'uploaded';
-    
-    const cellFiles = recognized.filter(r => r.mapping.type === 'cell');
-    if (cellFiles.length > 0) newStatus['cells_folder'] = 'uploaded';
-    
-    setUploadStatus(newStatus);
-    setIsProcessing(false);
-    
-    console.log(`🎉 Автозагрузка завершена! Загружено: ${uploadedCount}/${processed.length}`);
-  };
-
-  // Сохранение аудиофайла
-  const saveAudioFile = async (processedFile: ProcessedFile): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      
-      reader.onload = () => {
-        try {
-          const base64 = reader.result as string;
-          let storageKey: string;
-          
-          if (processedFile.mapping.type === 'cell') {
-            storageKey = `audio_cells_${processedFile.mapping.cellNumber}`;
-          } else {
-            storageKey = `audio_${processedFile.mapping.type}`;
-          }
-          
-          localStorage.setItem(storageKey, base64);
-          console.log(`✅ Сохранён: ${processedFile.file.name} -> ${storageKey}`);
-          resolve();
-        } catch (error) {
-          reject(error);
-        }
-      };
-      
-      reader.onerror = () => reject(new Error('Ошибка чтения файла'));
-      reader.readAsDataURL(processedFile.file);
-    });
-  };
-
-  // Автоматическая загрузка с Mail.ru Cloud (имитация)
-  const handleAutoDownload = async () => {
-    setIsProcessing(true);
-    console.log('🚀 Начинаю автоматическую загрузку с Mail.ru Cloud...');
-    
-    try {
-      // Имитируем загрузку файлов с вашей ссылки
-      const filesToDownload = [
-        { name: 'discount.mp3', type: 'discount' },
-        { name: 'camera.mp3', type: 'camera' },
-        { name: 'rate.mp3', type: 'rate' },
-      ];
-      
-      // Имитируем ячейки
-      for (let i = 1; i <= 10; i++) {
-        filesToDownload.push({ name: `${i}.mp3`, type: 'cell', cellNumber: i });
-      }
-      
-      const processed: ProcessedFile[] = [];
-      
-      for (const fileInfo of filesToDownload) {
-        // Имитируем задержку загрузки
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
-        // Создаём пустой аудиофайл как имитацию (в реальности тут был бы fetch)
-        console.log(`📥 Имитация загрузки: ${fileInfo.name}`);
-        
-        const mockMapping = {
-          type: fileInfo.type as 'discount' | 'camera' | 'rate' | 'cell',
-          cellNumber: (fileInfo as any).cellNumber
-        };
-        
-        // Создаём имитацию файла
-        const mockFile = new File([''], fileInfo.name, { type: 'audio/mpeg' });
-        
-        const processedFile: ProcessedFile = {
-          file: mockFile,
-          mapping: mockMapping,
-          status: 'uploaded',
-          displayName: getFunctionDisplayName(mockMapping.type, mockMapping.cellNumber)
-        };
-        
-        processed.push(processedFile);
-        
-        // Сохраняем пустую запись в localStorage (в реальности тут был бы base64 аудио)
-        const storageKey = mockMapping.type === 'cell' 
-          ? `audio_cells_${mockMapping.cellNumber}` 
-          : `audio_${mockMapping.type}`;
-        
-        localStorage.setItem(storageKey, 'data:audio/mpeg;base64,placeholder');
-        console.log(`✅ Имитация сохранения: ${storageKey}`);
-      }
-      
-      setProcessedFiles(processed);
-      
-      // Обновляем статус
-      const newStatus = {
-        discount: 'uploaded' as const,
-        camera: 'uploaded' as const,
-        rate: 'uploaded' as const,
-        cells_folder: 'uploaded' as const
-      };
-      
-      setUploadStatus(newStatus);
-      
-      console.log('🎉 Имитация автозагрузки завершена!');
-      
-      // Показываем уведомление об имитации
-      const notification = document.createElement('div');
-      notification.innerHTML = `
-        <div style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #059669; color: white; padding: 16px 20px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); z-index: 9999; font-family: system-ui; font-size: 14px; max-width: 400px; text-align: center;">
-          <div style="font-weight: 600; margin-bottom: 8px;">🎉 Автозагрузка завершена!</div>
-          <div>⚠️ ДЕМО: Реальные файлы нужно загрузить вручную выше</div>
-        </div>
-      `;
-      document.body.appendChild(notification);
-      setTimeout(() => document.body.removeChild(notification), 5000);
-      
-    } catch (error) {
-      console.error('❌ Ошибка автозагрузки:', error);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  // Очистка всех аудиофайлов
-  const clearAllAudio = () => {
-    Object.keys(localStorage).forEach(key => {
-      if (key.startsWith('audio_')) {
-        localStorage.removeItem(key);
-      }
-    });
-    setUploadStatus({});
-    setProcessedFiles([]);
-    setUnrecognizedFiles([]);
-    console.log('🗑️ Все аудиофайлы удалены');
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'uploaded': return <Icon name="CheckCircle" className="text-green-500" size={16} />;
-      case 'failed': return <Icon name="XCircle" className="text-red-500" size={16} />;
-      default: return <Icon name="Clock" className="text-yellow-500" size={16} />;
-    }
-  };
-
-  const getFileTypeIcon = (type: string) => {
-    switch (type) {
-      case 'discount': return <Icon name="Percent" className="text-purple-500" size={16} />;
-      case 'camera': return <Icon name="Camera" className="text-blue-500" size={16} />;
-      case 'rate': return <Icon name="Star" className="text-yellow-500" size={16} />;
-      case 'cell': return <Icon name="Package" className="text-green-500" size={16} />;
-      default: return <Icon name="Music" className="text-gray-500" size={16} />;
-    }
-  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -282,167 +48,23 @@ const AudioUploader = ({ onClose }: AudioUploaderProps) => {
           </div>
 
           {/* Инструкция */}
-          <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
-            <h3 className="font-medium mb-2 flex items-center gap-2">
-              <Icon name="Lightbulb" size={16} className="text-blue-600" />
-              Автоматическое распознавание файлов
-            </h3>
-            <div className="text-sm text-gray-700 space-y-2">
-              <p>🎯 <strong>Загрузите всю папку сразу</strong> - система автоматически распознает каждый файл по названию!</p>
-              <div className="grid grid-cols-2 gap-4 mt-3">
-                <div>
-                  <p className="font-medium">Примеры названий:</p>
-                  <ul className="text-xs space-y-1 mt-1">
-                    <li>• <code>discount.mp3</code> → Скидки</li>
-                    <li>• <code>camera.mp3</code> → Проверка под камерой</li>
-                    <li>• <code>1.mp3, 2.mp3...</code> → Ячейки</li>
-                    <li>• <code>ячейка15.mp3</code> → Ячейка 15</li>
-                  </ul>
-                </div>
-                <div>
-                  <p className="font-medium">Ключевые слова:</p>
-                  <ul className="text-xs space-y-1 mt-1">
-                    <li>• скидка, кошелёк, товары</li>
-                    <li>• камера, проверьте, товар</li>
-                    <li>• оцените, приложение, выдача</li>
-                    <li>• любые цифры (для ячеек)</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
+          <UploadInstructions />
 
           {/* Способы загрузки */}
-          <div className="mb-6 space-y-4">
-            {/* Автоматическая загрузка с облака */}
-            <div className="p-6 border-2 border-dashed border-green-300 rounded-lg bg-gradient-to-br from-green-50 to-emerald-50 text-center">
-              <div className="flex flex-col items-center gap-4">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-                  <Icon name="Cloud" size={32} className="text-green-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-green-800">Загрузка с облака</h3>
-                  <p className="text-sm text-green-600 mt-1">
-                    Прямая загрузка ВСЕХ файлов с Mail.ru Cloud
-                  </p>
-                </div>
-                <Button
-                  onClick={() => setShowCloudLoader(true)}
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                >
-                  <Icon name="CloudDownload" size={16} className="mr-2" />
-                  Загрузить с облака
-                </Button>
-                <div className="text-xs text-green-700 max-w-md space-y-1">
-                  <p>✅ <strong>59 реальных аудиофайлов</strong> с вашего облака</p>
-                  <p>🎯 <strong>Автоматическое распознавание</strong> по названиям</p>
-                  <p>⚡ <strong>Прямые ссылки</strong> - без скачивания архива</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Ручная загрузка */}
-            <div className="p-6 border-2 border-dashed border-purple-300 rounded-lg bg-gradient-to-br from-purple-50 to-pink-50 text-center">
-              <div className="flex flex-col items-center gap-4">
-                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center">
-                  <Icon name="Upload" size={32} className="text-purple-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-purple-800">Ручная загрузка папки</h3>
-                  <p className="text-sm text-purple-600 mt-1">
-                    Скачайте файлы с Mail.ru Cloud и выберите здесь
-                  </p>
-                </div>
-                <Input
-                  type="file"
-                  accept="audio/*"
-                  multiple
-                  onChange={handleBulkUpload}
-                  disabled={isProcessing}
-                  className="max-w-xs"
-                />
-                <div className="text-xs text-purple-700 max-w-md space-y-1">
-                  <p>📁 <a href="https://cloud.mail.ru/public/bsFp/vkbT876fD" target="_blank" rel="noopener noreferrer" className="underline font-medium">Скачать архив с Mail.ru Cloud</a></p>
-                  <p>📥 Распакуйте и выберите все файлы (Ctrl+A)</p>
-                </div>
-                {isProcessing && (
-                  <div className="flex items-center gap-2 text-purple-600">
-                    <Icon name="Loader2" size={16} className="animate-spin" />
-                    <span className="text-sm">Обрабатываю файлы...</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          <UploadMethods 
+            isProcessing={isProcessing}
+            onBulkUpload={handleBulkUpload}
+            onShowCloudLoader={() => setShowCloudLoader(true)}
+          />
 
           {/* Результаты обработки */}
-          {processedFiles.length > 0 && (
-            <div className="mb-6">
-              <h3 className="font-medium mb-3 flex items-center gap-2">
-                <Icon name="CheckCircle2" size={16} className="text-green-600" />
-                Распознанные файлы ({processedFiles.length})
-              </h3>
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {processedFiles.map((pf, index) => (
-                  <div key={index} className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                    {getFileTypeIcon(pf.mapping.type)}
-                    <div className="flex-1">
-                      <div className="font-medium text-sm">{pf.displayName}</div>
-                      <div className="text-xs text-gray-500">{pf.file.name}</div>
-                    </div>
-                    {getStatusIcon(pf.status)}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <ProcessedFilesList processedFiles={processedFiles} />
 
           {/* Не распознанные файлы */}
-          {unrecognizedFiles.length > 0 && (
-            <div className="mb-6">
-              <h3 className="font-medium mb-3 flex items-center gap-2">
-                <Icon name="AlertTriangle" size={16} className="text-yellow-600" />
-                Не распознанные файлы ({unrecognizedFiles.length})
-              </h3>
-              <div className="space-y-2 max-h-32 overflow-y-auto">
-                {unrecognizedFiles.map((file, index) => (
-                  <div key={index} className="flex items-center gap-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm">
-                    <Icon name="Music" className="text-yellow-600" size={16} />
-                    <span className="flex-1">{file.name}</span>
-                    <span className="text-xs text-yellow-600">Переименуйте файл</span>
-                  </div>
-                ))}
-              </div>
-              <p className="text-xs text-yellow-700 mt-2">
-                💡 Переименуйте файлы согласно примерам выше и загрузите снова
-              </p>
-            </div>
-          )}
+          <UnrecognizedFilesList unrecognizedFiles={unrecognizedFiles} />
 
           {/* Статус загруженных файлов */}
-          <div className="mb-6">
-            <h3 className="font-medium mb-3">Текущий статус</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {[
-                { key: 'discount', label: 'Скидки', icon: 'Percent' },
-                { key: 'camera', label: 'Камера', icon: 'Camera' },
-                { key: 'rate', label: 'Оценка', icon: 'Star' },
-                { key: 'cells_folder', label: 'Ячейки', icon: 'Package' }
-              ].map(({ key, label, icon }) => (
-                <div key={key} className={`p-3 rounded-lg border text-center ${
-                  uploadStatus[key] === 'uploaded' 
-                    ? 'bg-green-50 border-green-200 text-green-800' 
-                    : 'bg-gray-50 border-gray-200 text-gray-500'
-                }`}>
-                  <Icon name={icon as any} size={20} className="mx-auto mb-1" />
-                  <div className="text-sm font-medium">{label}</div>
-                  <div className="text-xs">
-                    {uploadStatus[key] === 'uploaded' ? '✅ Загружено' : '⏳ Нет файла'}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <FileStatusGrid uploadStatus={uploadStatus} />
 
           {/* Кнопки действий */}
           <div className="flex gap-2 mt-6">
@@ -452,16 +74,7 @@ const AudioUploader = ({ onClose }: AudioUploaderProps) => {
             </Button>
             <Button 
               variant="outline" 
-              onClick={() => {
-                console.log('=== ДИАГНОСТИКА АУДИОФАЙЛОВ ===');
-                const audioKeys = Object.keys(localStorage).filter(key => key.startsWith('audio_'));
-                console.log(`Всего файлов: ${audioKeys.length}`);
-                audioKeys.forEach(key => {
-                  const value = localStorage.getItem(key);
-                  console.log(`📁 ${key}: ${value ? `${(value.length / 1024).toFixed(1)}KB` : 'null'}`);
-                });
-                console.log('=== КОНЕЦ ДИАГНОСТИКИ ===');
-              }}
+              onClick={runDiagnostics}
             >
               <Icon name="Bug" size={16} className="mr-2" />
               Диагностика
@@ -482,19 +95,7 @@ const AudioUploader = ({ onClose }: AudioUploaderProps) => {
       {showCloudLoader && (
         <CloudAudioLoader 
           onClose={() => setShowCloudLoader(false)}
-          onLoadComplete={() => {
-            // Обновляем статусы после загрузки
-            const newStatus: Record<string, 'pending' | 'uploaded'> = {};
-            ['discount', 'camera', 'rate'].forEach(type => {
-              if (localStorage.getItem(`audio_${type}`)) {
-                newStatus[type] = 'uploaded';
-              }
-            });
-            if (localStorage.getItem('audio_cells_1')) {
-              newStatus['cells_folder'] = 'uploaded';
-            }
-            setUploadStatus(newStatus);
-          }}
+          onLoadComplete={updateStatusAfterCloudLoad}
         />
       )}
     </div>
