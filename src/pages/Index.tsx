@@ -190,8 +190,17 @@ const Index = () => {
           </div>
         )}
 
-        {activeTab === 'приёмка' && <ReceptionTab />}
-        {activeTab === 'возврат' && <ReturnsTab />}
+        {activeTab === 'приёмка' && (
+          <div className="max-w-4xl mx-auto">
+            <ReceptionTab />
+          </div>
+        )}
+        
+        {activeTab === 'возврат' && (
+          <div className="max-w-4xl mx-auto">
+            <ReturnsTab />
+          </div>
+        )}
 
         {/* Audio Controls */}
         <div className="fixed bottom-4 right-4 z-50">
