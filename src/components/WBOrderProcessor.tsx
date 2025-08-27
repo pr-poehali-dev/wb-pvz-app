@@ -48,18 +48,25 @@ const WBOrderProcessor: React.FC<WBOrderProcessorProps> = ({ order, onComplete, 
   useEffect(() => {
     if (currentStep === 'found') {
       const processOrder = async () => {
-        // Озвучиваем номер ячейки
-        await audioSystem.playCellAudio(order.cellNumber);
-        
-        // Ждем 2 секунды, затем озвучиваем скидки если есть
+        // Озвучиваем последовательность для ячейки
+        await audioSystem.playFindCellAudio(); // "Найдите вашу ячейку номер"
         setTimeout(async () => {
-          if (order.hasDiscount) {
-            await audioSystem.playDiscountAudio();
-          }
+          await audioSystem.playCellAudio(order.cellNumber); // "A15"
           
-          // Переходим к этапу получения товара
-          setCurrentStep('retrieving');
-        }, 2000);
+          setTimeout(async () => {
+            await audioSystem.playCellOpenAudio(); // "Ячейка открыта, заберите товар"
+            
+            // Затем озвучиваем скидки если есть
+            setTimeout(async () => {
+              if (order.hasDiscount) {
+                await audioSystem.playDiscountAudio();
+              }
+              
+              // Переходим к этапу получения товара
+              setCurrentStep('retrieving');
+            }, 2000);
+          }, 1500);
+        }, 1000);
       };
       
       processOrder();
@@ -105,13 +112,25 @@ const WBOrderProcessor: React.FC<WBOrderProcessorProps> = ({ order, onComplete, 
     setTimeout(async () => {
       setCurrentStep('completed');
       
-      // Озвучиваем просьбу оценить ПВЗ
-      await audioSystem.playRateUsAudio();
+      // Последовательность озвучек при завершении
+      await audioSystem.playSuccessSound(); // Успешная оплата
       
-      // Завершаем через 4 секунды
-      setTimeout(() => {
-        onComplete();
-      }, 4000);
+      setTimeout(async () => {
+        await audioSystem.playThankYouAudio(); // "Спасибо за покупку"
+        
+        setTimeout(async () => {
+          await audioSystem.playRateUsAudio(); // "Оцените наш пункт выдачи в приложении"
+          
+          setTimeout(async () => {
+            await audioSystem.playGoodDayAudio(); // "Хорошего дня"
+            
+            // Завершаем через 2 секунды
+            setTimeout(() => {
+              onComplete();
+            }, 2000);
+          }, 3000);
+        }, 1500);
+      }, 1000);
       
       setIsProcessing(false);
     }, 2000);

@@ -7,29 +7,16 @@ import { audioSystem } from '@/utils/audioSystem';
 const AudioTester: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState<string | null>(null);
   const [systemStatus, setSystemStatus] = useState<any>({});
+  const [activeCategory, setActiveCategory] = useState<string>('main');
 
-  const testAudio = async (type: string, label: string) => {
+  const testAudio = async (type: string, label: string, method: string, params?: any[]) => {
     setIsPlaying(type);
     try {
-      switch (type) {
-        case 'cell':
-          await audioSystem.playCellAudio('A15'); // Тестовая ячейка
-          break;
-        case 'discount':
-          await audioSystem.playDiscountAudio();
-          break;
-        case 'camera':
-          await audioSystem.playCheckCameraAudio();
-          break;
-        case 'rate':
-          await audioSystem.playRateUsAudio();
-          break;
-        case 'success':
-          await audioSystem.playSuccessSound();
-          break;
-        case 'error':
-          await audioSystem.playErrorSound();
-          break;
+      // @ts-ignore - динамический вызов метода
+      if (params) {
+        await audioSystem[method](...params);
+      } else {
+        await audioSystem[method]();
       }
     } catch (error) {
       console.error(`Ошибка воспроизведения ${label}:`, error);
@@ -55,137 +42,225 @@ const AudioTester: React.FC = () => {
     updateStatus();
   }, []);
 
+  // Группы аудиофайлов для тестирования
+  const audioCategories = {
+    main: {
+      title: 'Основные',
+      icon: 'Volume2',
+      items: [
+        { key: 'discount', label: 'Скидки', method: 'playDiscountAudio' },
+        { key: 'camera', label: 'Проверка', method: 'playCheckCameraAudio' },
+        { key: 'rate', label: 'Оценка', method: 'playRateUsAudio' },
+        { key: 'cell', label: 'Ячейка A15', method: 'playCellAudio', params: ['A15'] }
+      ]
+    },
+    entry: {
+      title: 'Вход',
+      icon: 'DoorOpen',
+      items: [
+        { key: 'welcome', label: 'Приветствие', method: 'playWelcomeAudio' },
+        { key: 'scanPhone', label: 'Сканер', method: 'playScanPhoneAudio' },
+        { key: 'accessGranted', label: 'Доступ', method: 'playAccessGrantedAudio' },
+        { key: 'scanError', label: 'Ошибка', method: 'playScanErrorAudio' }
+      ]
+    },
+    cells: {
+      title: 'Ячейки',
+      icon: 'Archive',
+      items: [
+        { key: 'findCell', label: 'Найти ячейку', method: 'playFindCellAudio' },
+        { key: 'cellOpen', label: 'Открыта', method: 'playCellOpenAudio' },
+        { key: 'closeCell', label: 'Закрыть', method: 'playCloseCellAudio' },
+        { key: 'timeLimit', label: 'Лимит времени', method: 'playTimeLimitAudio' }
+      ]
+    },
+    fitting: {
+      title: 'Примерочная',
+      icon: 'Shirt',
+      items: [
+        { key: 'fittingFree', label: 'Свободна', method: 'playFittingFreeAudio' },
+        { key: 'fittingTime', label: '5 минут', method: 'playFittingTimeAudio' },
+        { key: 'finishFitting', label: 'Завершить', method: 'playFinishFittingAudio' }
+      ]
+    },
+    returns: {
+      title: 'Возвраты',
+      icon: 'RotateCcw',
+      items: [
+        { key: 'returnStaff', label: 'К сотруднику', method: 'playReturnStaffAudio' },
+        { key: 'returnAccepted', label: 'Принят', method: 'playReturnAcceptedAudio' },
+        { key: 'packReturn', label: 'Упаковать', method: 'playPackReturnAudio' }
+      ]
+    },
+    queue: {
+      title: 'Очередь',
+      icon: 'Users',
+      items: [
+        { key: 'waitTurn', label: 'Ожидание', method: 'playWaitTurnAudio' },
+        { key: 'nextCustomer', label: 'Следующий', method: 'playNextCustomerAudio' }
+      ]
+    },
+    tech: {
+      title: 'Техподдержка',
+      icon: 'Settings',
+      items: [
+        { key: 'techIssues', label: 'Неполадки', method: 'playTechIssuesAudio' },
+        { key: 'systemDown', label: 'Недоступна', method: 'playSystemDownAudio' }
+      ]
+    },
+    time: {
+      title: 'Время работы',
+      icon: 'Clock',
+      items: [
+        { key: 'closing', label: 'Закрытие', method: 'playClosingAudio' },
+        { key: 'tenMinutes', label: '10 минут', method: 'playTenMinutesAudio' }
+      ]
+    },
+    thanks: {
+      title: 'Благодарности',
+      icon: 'Heart',
+      items: [
+        { key: 'thankYou', label: 'Спасибо', method: 'playThankYouAudio' },
+        { key: 'goodDay', label: 'Хорошего дня', method: 'playGoodDayAudio' }
+      ]
+    },
+    system: {
+      title: 'Системные',
+      icon: 'Bell',
+      items: [
+        { key: 'attention', label: 'Внимание', method: 'playAttentionAudio' },
+        { key: 'important', label: 'Важное', method: 'playImportantAudio' },
+        { key: 'success', label: 'Успех', method: 'playSuccessSound' },
+        { key: 'error', label: 'Ошибка', method: 'playErrorSound' },
+        { key: 'notification', label: 'Уведомление', method: 'playNotificationSound' }
+      ]
+    }
+  };
+
+  const currentCategory = audioCategories[activeCategory as keyof typeof audioCategories];
+
   return (
-    <Card className="w-full max-w-2xl mx-auto">
+    <Card className="w-full max-w-4xl mx-auto">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Icon name="Volume2" size={20} />
-          Тестирование озвучки WB ПВЗ
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Icon name="Volume2" size={20} />
+            Полная система озвучки WB ПВЗ
+          </div>
+          <Button 
+            onClick={toggleAudio}
+            size="sm"
+            variant={systemStatus.enabled ? "default" : "secondary"}
+          >
+            {systemStatus.enabled ? "Включено" : "Отключено"}
+          </Button>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Статус системы */}
         <div className="bg-gray-50 p-4 rounded-lg">
-          <div className="flex items-center justify-between mb-2">
-            <span className="font-medium">Статус системы:</span>
-            <Button 
-              onClick={toggleAudio}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div>
+              <div className="font-medium text-gray-700">Статус</div>
+              <div className={systemStatus.enabled ? "text-green-600" : "text-red-600"}>
+                {systemStatus.enabled ? "Активна" : "Отключена"}
+              </div>
+            </div>
+            <div>
+              <div className="font-medium text-gray-700">Инициализация</div>
+              <div className={systemStatus.initialized ? "text-green-600" : "text-orange-600"}>
+                {systemStatus.initialized ? "Да" : "Нет"}
+              </div>
+            </div>
+            <div>
+              <div className="font-medium text-gray-700">В кеше</div>
+              <div className="text-blue-600">{systemStatus.cachedFiles?.length || 0}</div>
+            </div>
+            <div>
+              <div className="font-medium text-gray-700">Доступно</div>
+              <div className="text-green-600">{systemStatus.availableFiles?.length || 0}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Переключатель категорий */}
+        <div className="flex flex-wrap gap-2">
+          {Object.entries(audioCategories).map(([key, category]) => (
+            <Button
+              key={key}
               size="sm"
-              variant={systemStatus.enabled ? "default" : "secondary"}
+              variant={activeCategory === key ? "default" : "outline"}
+              onClick={() => setActiveCategory(key)}
+              className="flex items-center gap-1"
             >
-              {systemStatus.enabled ? "Включено" : "Отключено"}
+              <Icon name={category.icon as any} size={14} />
+              {category.title}
             </Button>
-          </div>
-          <div className="text-sm text-gray-600 space-y-1">
-            <div>🔄 Инициализирована: {systemStatus.initialized ? "Да" : "Нет"}</div>
-            <div>📁 Файлов в кеше: {systemStatus.cachedFiles?.length || 0}</div>
-            <div>☁️ Облако: {systemStatus.cloudUrl}</div>
+          ))}
+        </div>
+
+        {/* Кнопки тестирования текущей категории */}
+        <div className="space-y-3">
+          <h3 className="font-medium text-lg flex items-center gap-2">
+            <Icon name={currentCategory.icon as any} size={18} />
+            {currentCategory.title}
+          </h3>
+          
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+            {currentCategory.items.map((item) => (
+              <Button
+                key={item.key}
+                onClick={() => testAudio(item.key, item.label, item.method, item.params)}
+                disabled={isPlaying === item.key}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2 h-auto py-2 px-3 text-left justify-start"
+              >
+                {isPlaying === item.key ? (
+                  <Icon name="Loader2" size={14} className="animate-spin flex-shrink-0" />
+                ) : (
+                  <Icon name="Play" size={14} className="flex-shrink-0" />
+                )}
+                <span className="text-xs truncate">{item.label}</span>
+              </Button>
+            ))}
           </div>
         </div>
 
-        {/* Кнопки тестирования */}
-        <div className="grid grid-cols-2 gap-3">
-          <Button 
-            onClick={() => testAudio('cell', 'Ячейка A15')}
-            disabled={isPlaying === 'cell'}
-            className="flex items-center gap-2"
-          >
-            {isPlaying === 'cell' ? (
-              <Icon name="Loader2" size={16} className="animate-spin" />
-            ) : (
-              <Icon name="MapPin" size={16} />
-            )}
-            Ячейка A15
-          </Button>
-
-          <Button 
-            onClick={() => testAudio('discount', 'Скидки')}
-            disabled={isPlaying === 'discount'}
-            className="flex items-center gap-2"
-          >
-            {isPlaying === 'discount' ? (
-              <Icon name="Loader2" size={16} className="animate-spin" />
-            ) : (
-              <Icon name="Tag" size={16} />
-            )}
-            Скидки
-          </Button>
-
-          <Button 
-            onClick={() => testAudio('camera', 'Проверка камерой')}
-            disabled={isPlaying === 'camera'}
-            className="flex items-center gap-2"
-          >
-            {isPlaying === 'camera' ? (
-              <Icon name="Loader2" size={16} className="animate-spin" />
-            ) : (
-              <Icon name="Camera" size={16} />
-            )}
-            Проверка
-          </Button>
-
-          <Button 
-            onClick={() => testAudio('rate', 'Оценка ПВЗ')}
-            disabled={isPlaying === 'rate'}
-            className="flex items-center gap-2"
-          >
-            {isPlaying === 'rate' ? (
-              <Icon name="Loader2" size={16} className="animate-spin" />
-            ) : (
-              <Icon name="Star" size={16} />
-            )}
-            Оценка
-          </Button>
-
-          <Button 
-            onClick={() => testAudio('success', 'Успех')}
-            disabled={isPlaying === 'success'}
-            className="flex items-center gap-2"
-            variant="outline"
-          >
-            {isPlaying === 'success' ? (
-              <Icon name="Loader2" size={16} className="animate-spin" />
-            ) : (
-              <Icon name="CheckCircle" size={16} />
-            )}
-            Успех
-          </Button>
-
-          <Button 
-            onClick={() => testAudio('error', 'Ошибка')}
-            disabled={isPlaying === 'error'}
-            className="flex items-center gap-2"
-            variant="outline"
-          >
-            {isPlaying === 'error' ? (
-              <Icon name="Loader2" size={16} className="animate-spin" />
-            ) : (
-              <Icon name="XCircle" size={16} />
-            )}
-            Ошибка
-          </Button>
+        {/* Информация о файлах */}
+        <div className="text-xs text-gray-500 bg-blue-50 p-3 rounded space-y-2">
+          <div className="font-medium">💡 О системе озвучки:</div>
+          <ul className="space-y-1">
+            <li>• Автоматически ищет оригинальные файлы в облаке Mail.ru</li>
+            <li>• При отсутствии файла использует синтез речи</li>
+            <li>• Кеширует загруженные файлы для быстрого доступа</li>
+            <li>• Всего методов озвучки: {systemStatus.totalFiles || 'загружается...'}</li>
+          </ul>
+          
+          {systemStatus.availableFiles?.length > 0 && (
+            <details className="mt-2">
+              <summary className="cursor-pointer font-medium text-gray-700">
+                📁 Доступные файлы ({systemStatus.availableFiles.length})
+              </summary>
+              <div className="mt-1 max-h-32 overflow-y-auto text-xs">
+                {systemStatus.availableFiles.map((file: string, idx: number) => (
+                  <div key={idx} className="truncate">• {file}</div>
+                ))}
+              </div>
+            </details>
+          )}
         </div>
 
-        {/* Обновление статуса */}
+        {/* Кнопка обновления */}
         <Button 
           onClick={updateStatus}
           variant="outline" 
+          size="sm"
           className="w-full"
         >
           <Icon name="RefreshCw" size={16} className="mr-2" />
           Обновить статус
         </Button>
-
-        {/* Инструкция */}
-        <div className="text-xs text-gray-500 bg-blue-50 p-3 rounded">
-          <div className="font-medium mb-1">💡 Как это работает:</div>
-          <ul className="space-y-1">
-            <li>• Система пытается загрузить оригинальные файлы из облака Mail.ru</li>
-            <li>• Если файл не найден, используется синтез речи</li>
-            <li>• Все загруженные файлы кешируются для быстрого доступа</li>
-            <li>• Проверьте консоль браузера для детальной информации</li>
-          </ul>
-        </div>
       </CardContent>
     </Card>
   );

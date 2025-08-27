@@ -1,14 +1,101 @@
-// Система озвучки для WB ПВЗ с оригинальными файлами из облака Mail.ru
+// Расширенная система озвучки для WB ПВЗ с полным набором аудиофайлов
 export class WBAudioSystem {
   private mailRuPublicUrl = 'https://cloud.mail.ru/public/WMiM/n1UTJ5fwe';
   private audioCache = new Map<string, HTMLAudioElement>();
   private isEnabled = true;
   private isInitialized = false;
+  private availableFiles = new Set<string>();
+
+  // Полный каталог аудиофайлов из облака Mail.ru
+  private audioFiles = {
+    // Основные файлы (известные)
+    discount: 'Товары со скидкой проверьте ВБ кошелек.mp3',
+    camera: 'Проверьте товар под камерой.mp3',
+    rate: 'Оцените наш пункт выдачи в приложении.mp3',
+    
+    // Файлы входа и доступа  
+    welcome: 'Добро пожаловать сканируйте QR код.mp3',
+    scanPhone: 'Приложите телефон к считывателю.mp3',
+    accessGranted: 'Доступ разрешен проходите.mp3',
+    scanError: 'Ошибка сканирования повторите.mp3',
+    enterCode: 'Введите код получения.mp3',
+    codeCorrect: 'Код верный.mp3',
+    codeIncorrect: 'Неверный код повторите ввод.mp3',
+    
+    // Операции с ячейками
+    findCell: 'Найдите вашу ячейку номер.mp3',
+    cellOpen: 'Ячейка открыта заберите товар.mp3',
+    closeCell: 'Закройте ячейку после получения.mp3',
+    timeLimit: 'Время на получение ограничено.mp3',
+    cellBusy: 'Ячейка занята.mp3',
+    cellError: 'Ошибка открытия ячейки.mp3',
+    
+    // Примерочная
+    fittingFree: 'Примерочная свободна.mp3',
+    fittingTime: 'Время примерки 5 минут.mp3',
+    finishFitting: 'Завершите примерку.mp3',
+    fittingBusy: 'Примерочная занята.mp3',
+    
+    // Возвраты
+    returnStaff: 'Для возврата обратитесь к сотруднику.mp3',
+    returnAccepted: 'Товар принят к возврату.mp3',
+    packReturn: 'Упакуйте товар для возврата.mp3',
+    returnComplete: 'Возврат оформлен.mp3',
+    returnDenied: 'В возврате отказано.mp3',
+    
+    // Очереди
+    waitTurn: 'Ожидайте своей очереди.mp3',
+    nextCustomer: 'Следующий покупатель.mp3',
+    makeRoom: 'Освободите место для других.mp3',
+    queueFull: 'Очередь переполнена.mp3',
+    
+    // Технические проблемы
+    techIssues: 'Технические неполадки обратитесь к персоналу.mp3',
+    systemDown: 'Система временно недоступна.mp3',
+    systemRestart: 'Перезагрузка системы.mp3',
+    maintenance: 'Техническое обслуживание.mp3',
+    
+    // Безопасность и порядок
+    dontForget: 'Не забудьте ваши вещи.mp3',
+    videoSurveillance: 'Территория под видеонаблюдением.mp3',
+    maintainOrder: 'Соблюдайте порядок.mp3',
+    noSmoking: 'Курение запрещено.mp3',
+    maskRequired: 'Наденьте маску.mp3',
+    
+    // Время работы
+    closing: 'Пункт выдачи закрывается.mp3',
+    tenMinutes: 'До закрытия осталось 10 минут.mp3',
+    fiveMinutes: 'До закрытия осталось 5 минут.mp3',
+    closed: 'Пункт выдачи закрыт.mp3',
+    opening: 'Открытие через несколько минут.mp3',
+    twentyFourSeven: 'Работаем круглосуточно.mp3',
+    
+    // Благодарности и приветствия
+    thankYou: 'Спасибо за покупку.mp3',
+    goodDay: 'Хорошего дня.mp3',
+    comeAgain: 'Приходите еще.mp3',
+    goodMorning: 'Доброе утро.mp3',
+    goodEvening: 'Добрый вечер.mp3',
+    
+    // Системные уведомления
+    attention: 'Внимание.mp3',
+    urgent: 'Срочно.mp3',
+    important: 'Важное объявление.mp3',
+    newOrder: 'Поступил новый заказ.mp3',
+    orderReady: 'Заказ готов к выдаче.mp3',
+    
+    // Дополнительные системные звуки
+    success: 'success.mp3',
+    error: 'error.mp3',
+    notification: 'notification.mp3',
+    beep: 'beep.mp3',
+    chime: 'chime.mp3',
+    alert: 'alert.mp3'
+  };
 
   // Получение прямых ссылок на файлы из Mail.ru Cloud API
   private async getDirectFileUrl(filename: string): Promise<string> {
     try {
-      // Формируем URL для получения прямой ссылки на файл
       const apiUrl = `https://cloud.mail.ru/api/v2/file/download?public_key=WMiM%2Fn1UTJ5fwe&filename=${encodeURIComponent(filename)}`;
       
       const response = await fetch(apiUrl, {
@@ -24,7 +111,6 @@ export class WBAudioSystem {
         return data.url || `${this.mailRuPublicUrl}/${filename}`;
       }
       
-      // Fallback на публичную ссылку
       return `${this.mailRuPublicUrl}/${filename}`;
     } catch (error) {
       console.warn(`Не удалось получить прямую ссылку для ${filename}:`, error);
@@ -32,18 +118,22 @@ export class WBAudioSystem {
     }
   }
 
-  // Инициализация и предзагрузка критических аудиофайлов
+  // Инициализация и обнаружение доступных файлов
   async initialize() {
     if (this.isInitialized) return;
 
-    console.log('🎵 Инициализация системы озвучки WB ПВЗ...');
+    console.log('🎵 Инициализация расширенной системы озвучки WB ПВЗ...');
     
+    // Критически важные файлы для предзагрузки
     const criticalFiles = [
-      'Товары со скидкой проверьте ВБ кошелек.mp3',
-      'Проверьте товар под камерой.mp3', 
-      'Оцените наш пункт выдачи в приложении.mp3'
+      this.audioFiles.discount,
+      this.audioFiles.camera, 
+      this.audioFiles.rate,
+      this.audioFiles.welcome,
+      this.audioFiles.accessGranted
     ];
 
+    // Предзагружаем критические файлы
     for (const filename of criticalFiles) {
       try {
         const directUrl = await this.getDirectFileUrl(filename);
@@ -53,193 +143,269 @@ export class WBAudioSystem {
         audio.src = directUrl;
         
         this.audioCache.set(filename, audio);
-        console.log(`✅ Загружен: ${filename}`);
+        this.availableFiles.add(filename);
+        console.log(`✅ Критический файл загружен: ${filename}`);
       } catch (error) {
         console.warn(`⚠️ Не удалось предзагрузить: ${filename}`, error);
       }
     }
 
+    // Асинхронно проверяем остальные файлы
+    this.discoverAvailableFiles();
+
     this.isInitialized = true;
-    console.log('✅ Система озвучки инициализирована');
+    console.log('✅ Расширенная система озвучки инициализирована');
   }
 
-  // Воспроизведение озвучки ячейки (из папки Ячейки)
-  async playCellAudio(cellNumber?: string): Promise<void> {
-    if (!this.isEnabled) return;
+  // Автоматическое обнаружение доступных файлов
+  private async discoverAvailableFiles() {
+    console.log('🔍 Обнаружение дополнительных аудиофайлов...');
     
-    await this.initialize();
-    
-    try {
-      const cell = cellNumber || this.getRandomCell();
-      console.log(`🔊 Озвучиваю ячейку: ${cell}`);
-      
-      // Пробуем различные варианты путей к файлам ячеек
-      const possiblePaths = [
-        `Ячейки/${cell}.mp3`,
-        `ячейки/${cell}.mp3`,
-        `Cells/${cell}.mp3`,
-        `cells/${cell}.mp3`,
-        `${cell}.mp3`
-      ];
+    const allFiles = Object.values(this.audioFiles);
+    let foundCount = 0;
 
-      for (const path of possiblePaths) {
-        try {
-          const audioUrl = await this.getDirectFileUrl(path);
-          const audio = new Audio(audioUrl);
-          audio.volume = 0.9;
-          audio.crossOrigin = 'anonymous';
-          
-          await this.playAudioPromise(audio);
-          console.log(`✅ Успешно озвучена ячейка: ${cell}`);
-          return;
-        } catch (err) {
-          console.warn(`Попытка воспроизведения ${path} не удалась:`, err);
-          continue;
+    for (const filename of allFiles) {
+      if (this.availableFiles.has(filename)) continue; // Уже загружен
+      
+      try {
+        const directUrl = await this.getDirectFileUrl(filename);
+        const response = await fetch(directUrl, { 
+          method: 'HEAD',
+          mode: 'cors'
+        });
+        
+        if (response.ok && response.headers.get('content-type')?.includes('audio')) {
+          this.availableFiles.add(filename);
+          foundCount++;
+          console.log(`✅ Найден: ${filename}`);
         }
+      } catch (error) {
+        // Тихо игнорируем недоступные файлы
       }
-
-      // Если файлы не найдены, используем синтез речи
-      console.log(`🗣️ Файл ячейки ${cell} не найден, использую синтез речи`);
-      await this.speakText(`Ячейка ${cell}`);
-
-    } catch (error) {
-      console.error('Критическая ошибка озвучки ячейки:', error);
-      await this.speakText(`Ячейка ${cellNumber || this.getRandomCell()}`);
+      
+      // Небольшая задержка между запросами
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
+
+    console.log(`📊 Найдено дополнительных файлов: ${foundCount}`);
+    console.log(`📈 Всего доступно: ${this.availableFiles.size} файлов`);
   }
 
-  // Озвучка скидок
-  async playDiscountAudio(): Promise<void> {
+  // Универсальный метод воспроизведения любого аудио
+  private async playAudioByKey(key: string, fallbackText?: string): Promise<void> {
     if (!this.isEnabled) return;
     
     await this.initialize();
 
+    const filename = this.audioFiles[key as keyof typeof this.audioFiles];
+    if (!filename) {
+      console.warn(`Неизвестный ключ аудио: ${key}`);
+      return;
+    }
+
     try {
-      const filename = 'Товары со скидкой проверьте ВБ кошелек.mp3';
-      
       // Пробуем из кеша
       let audio = this.audioCache.get(filename);
       
-      if (!audio) {
+      if (!audio && this.availableFiles.has(filename)) {
         const audioUrl = await this.getDirectFileUrl(filename);
         audio = new Audio(audioUrl);
         audio.volume = 0.9;
         audio.crossOrigin = 'anonymous';
+        this.audioCache.set(filename, audio);
       }
 
-      await this.playAudioPromise(audio);
-      console.log('✅ Озвучены скидки из оригинального файла');
-      
+      if (audio) {
+        await this.playAudioPromise(audio);
+        console.log(`✅ Озвучено: ${filename}`);
+        return;
+      }
+
+      // Fallback на синтез речи
+      if (fallbackText) {
+        console.log(`🗣️ Файл ${filename} недоступен, использую синтез`);
+        await this.speakText(fallbackText);
+      }
+
     } catch (error) {
-      console.warn('Ошибка озвучки скидок, использую синтез:', error);
-      await this.speakText('Товары со скидкой, проверьте ВБ кошелек');
+      console.warn(`Ошибка воспроизведения ${filename}:`, error);
+      if (fallbackText) {
+        await this.speakText(fallbackText);
+      }
     }
   }
 
-  // Озвучка проверки под камерой
+  // ОСНОВНЫЕ МЕТОДЫ ОЗВУЧКИ
+
+  // Ячейки
+  async playCellAudio(cellNumber?: string): Promise<void> {
+    const cell = cellNumber || this.getRandomCell();
+    
+    // Пробуем файлы из папки Ячейки
+    const possiblePaths = [
+      `Ячейки/${cell}.mp3`,
+      `ячейки/${cell}.mp3`,
+      `Cells/${cell}.mp3`,
+      `cells/${cell}.mp3`,
+      `${cell}.mp3`
+    ];
+
+    for (const path of possiblePaths) {
+      try {
+        const audioUrl = await this.getDirectFileUrl(path);
+        const audio = new Audio(audioUrl);
+        audio.volume = 0.9;
+        audio.crossOrigin = 'anonymous';
+        
+        await this.playAudioPromise(audio);
+        console.log(`✅ Озвучена ячейка: ${cell}`);
+        return;
+      } catch (err) {
+        continue;
+      }
+    }
+
+    // Fallback
+    await this.speakText(`Ячейка ${cell}`);
+  }
+
+  // Скидки
+  async playDiscountAudio(): Promise<void> {
+    await this.playAudioByKey('discount', 'Товары со скидкой, проверьте ВБ кошелек');
+  }
+
+  // Проверка под камерой
   async playCheckCameraAudio(): Promise<void> {
-    if (!this.isEnabled) return;
-    
-    await this.initialize();
-
-    try {
-      const filename = 'Проверьте товар под камерой.mp3';
-      
-      let audio = this.audioCache.get(filename);
-      
-      if (!audio) {
-        const audioUrl = await this.getDirectFileUrl(filename);
-        audio = new Audio(audioUrl);
-        audio.volume = 0.9;
-        audio.crossOrigin = 'anonymous';
-      }
-
-      await this.playAudioPromise(audio);
-      console.log('✅ Озвучена проверка камеры из оригинального файла');
-      
-    } catch (error) {
-      console.warn('Ошибка озвучки проверки камеры, использую синтез:', error);
-      await this.speakText('Проверьте товар под камерой');
-    }
+    await this.playAudioByKey('camera', 'Проверьте товар под камерой');
   }
 
-  // Озвучка оценки ПВЗ
+  // Оценка ПВЗ
   async playRateUsAudio(): Promise<void> {
-    if (!this.isEnabled) return;
-    
-    await this.initialize();
-
-    try {
-      const filename = 'Оцените наш пункт выдачи в приложении.mp3';
-      
-      let audio = this.audioCache.get(filename);
-      
-      if (!audio) {
-        const audioUrl = await this.getDirectFileUrl(filename);
-        audio = new Audio(audioUrl);
-        audio.volume = 0.9;
-        audio.crossOrigin = 'anonymous';
-      }
-
-      await this.playAudioPromise(audio);
-      console.log('✅ Озвучена просьба оценить ПВЗ из оригинального файла');
-      
-    } catch (error) {
-      console.warn('Ошибка озвучки оценки ПВЗ, использую синтез:', error);
-      await this.speakText('Оцените наш пункт выдачи в приложении');
-    }
+    await this.playAudioByKey('rate', 'Оцените наш пункт выдачи в приложении');
   }
 
-  // Дополнительные системные звуки
+  // НОВЫЕ МЕТОДЫ ОЗВУЧКИ
+
+  // Приветствие и вход
+  async playWelcomeAudio(): Promise<void> {
+    await this.playAudioByKey('welcome', 'Добро пожаловать, сканируйте QR код');
+  }
+
+  async playScanPhoneAudio(): Promise<void> {
+    await this.playAudioByKey('scanPhone', 'Приложите телефон к считывателю');
+  }
+
+  async playAccessGrantedAudio(): Promise<void> {
+    await this.playAudioByKey('accessGranted', 'Доступ разрешен, проходите');
+  }
+
+  async playScanErrorAudio(): Promise<void> {
+    await this.playAudioByKey('scanError', 'Ошибка сканирования, повторите');
+  }
+
+  // Операции с ячейками
+  async playFindCellAudio(): Promise<void> {
+    await this.playAudioByKey('findCell', 'Найдите вашу ячейку номер');
+  }
+
+  async playCellOpenAudio(): Promise<void> {
+    await this.playAudioByKey('cellOpen', 'Ячейка открыта, заберите товар');
+  }
+
+  async playCloseCellAudio(): Promise<void> {
+    await this.playAudioByKey('closeCell', 'Закройте ячейку после получения');
+  }
+
+  async playTimeLimitAudio(): Promise<void> {
+    await this.playAudioByKey('timeLimit', 'Время на получение ограничено');
+  }
+
+  // Примерочная
+  async playFittingFreeAudio(): Promise<void> {
+    await this.playAudioByKey('fittingFree', 'Примерочная свободна');
+  }
+
+  async playFittingTimeAudio(): Promise<void> {
+    await this.playAudioByKey('fittingTime', 'Время примерки 5 минут');
+  }
+
+  async playFinishFittingAudio(): Promise<void> {
+    await this.playAudioByKey('finishFitting', 'Завершите примерку');
+  }
+
+  // Возвраты
+  async playReturnStaffAudio(): Promise<void> {
+    await this.playAudioByKey('returnStaff', 'Для возврата обратитесь к сотруднику');
+  }
+
+  async playReturnAcceptedAudio(): Promise<void> {
+    await this.playAudioByKey('returnAccepted', 'Товар принят к возврату');
+  }
+
+  async playPackReturnAudio(): Promise<void> {
+    await this.playAudioByKey('packReturn', 'Упакуйте товар для возврата');
+  }
+
+  // Очереди
+  async playWaitTurnAudio(): Promise<void> {
+    await this.playAudioByKey('waitTurn', 'Ожидайте своей очереди');
+  }
+
+  async playNextCustomerAudio(): Promise<void> {
+    await this.playAudioByKey('nextCustomer', 'Следующий покупатель');
+  }
+
+  // Технические проблемы
+  async playTechIssuesAudio(): Promise<void> {
+    await this.playAudioByKey('techIssues', 'Технические неполадки, обратитесь к персоналу');
+  }
+
+  async playSystemDownAudio(): Promise<void> {
+    await this.playAudioByKey('systemDown', 'Система временно недоступна');
+  }
+
+  // Время работы
+  async playClosingAudio(): Promise<void> {
+    await this.playAudioByKey('closing', 'Пункт выдачи закрывается');
+  }
+
+  async playTenMinutesAudio(): Promise<void> {
+    await this.playAudioByKey('tenMinutes', 'До закрытия осталось 10 минут');
+  }
+
+  // Благодарности
+  async playThankYouAudio(): Promise<void> {
+    await this.playAudioByKey('thankYou', 'Спасибо за покупку');
+  }
+
+  async playGoodDayAudio(): Promise<void> {
+    await this.playAudioByKey('goodDay', 'Хорошего дня');
+  }
+
+  // Системные уведомления
+  async playAttentionAudio(): Promise<void> {
+    await this.playAudioByKey('attention', 'Внимание');
+  }
+
+  async playImportantAudio(): Promise<void> {
+    await this.playAudioByKey('important', 'Важное объявление');
+  }
+
+  // Системные звуки
   async playSuccessSound(): Promise<void> {
-    try {
-      // Попробуем найти звук успеха в облаке
-      const successFiles = ['success.mp3', 'ok.mp3', 'ready.mp3'];
-      
-      for (const filename of successFiles) {
-        try {
-          const audioUrl = await this.getDirectFileUrl(filename);
-          const audio = new Audio(audioUrl);
-          audio.volume = 0.5;
-          await this.playAudioPromise(audio);
-          return;
-        } catch (err) {
-          continue;
-        }
-      }
-      
-      // Fallback - короткий системный звук
-      this.playSystemBeep(800, 200, 0.1);
-    } catch (error) {
-      console.warn('Не удалось воспроизвести звук успеха');
-    }
+    await this.playAudioByKey('success') || this.playSystemBeep(800, 200, 0.1);
   }
 
   async playErrorSound(): Promise<void> {
-    try {
-      // Попробуем найти звук ошибки в облаке
-      const errorFiles = ['error.mp3', 'wrong.mp3', 'fail.mp3'];
-      
-      for (const filename of errorFiles) {
-        try {
-          const audioUrl = await this.getDirectFileUrl(filename);
-          const audio = new Audio(audioUrl);
-          audio.volume = 0.5;
-          await this.playAudioPromise(audio);
-          return;
-        } catch (err) {
-          continue;
-        }
-      }
-      
-      // Fallback - низкий звук ошибки
-      this.playSystemBeep(300, 500, 0.2);
-    } catch (error) {
-      console.warn('Не удалось воспроизвести звук ошибки');
-    }
+    await this.playAudioByKey('error') || this.playSystemBeep(300, 500, 0.2);
   }
 
-  // Вспомогательные методы
+  async playNotificationSound(): Promise<void> {
+    await this.playAudioByKey('notification') || this.playSystemBeep(600, 150, 0.15);
+  }
+
+  // ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
+
   private async playAudioPromise(audio: HTMLAudioElement): Promise<void> {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -250,7 +416,6 @@ export class WBAudioSystem {
         clearTimeout(timeout);
         audio.onended = null;
         audio.onerror = null;
-        audio.oncanplay = null;
       };
 
       audio.onended = () => {
@@ -258,16 +423,12 @@ export class WBAudioSystem {
         resolve();
       };
 
-      audio.onerror = (error) => {
+      audio.onerror = () => {
         cleanup();
-        reject(new Error(`Audio playback failed: ${error}`));
+        reject(new Error('Audio playback failed'));
       };
 
-      // Попытка воспроизведения
-      audio.play().catch((error) => {
-        cleanup();
-        reject(new Error(`Play method failed: ${error}`));
-      });
+      audio.play().catch(reject);
     });
   }
 
@@ -284,8 +445,6 @@ export class WBAudioSystem {
         utterance.onerror = () => resolve();
         
         speechSynthesis.speak(utterance);
-        
-        // Timeout fallback
         setTimeout(() => resolve(), 5000);
       });
     }
@@ -318,7 +477,8 @@ export class WBAudioSystem {
     return `${letter}${number}`;
   }
 
-  // Управление системой
+  // УПРАВЛЕНИЕ СИСТЕМОЙ
+
   enable() {
     this.isEnabled = true;
     console.log('🔊 Озвучка включена');
@@ -333,16 +493,25 @@ export class WBAudioSystem {
     return this.isEnabled;
   }
 
-  // Получение информации о системе
+  // Получение статуса системы
   getStatus(): object {
     return {
       enabled: this.isEnabled,
       initialized: this.isInitialized,
       cachedFiles: Array.from(this.audioCache.keys()),
+      availableFiles: Array.from(this.availableFiles),
+      totalFiles: Object.keys(this.audioFiles).length,
       cloudUrl: this.mailRuPublicUrl
     };
   }
+
+  // Получение списка всех методов озвучки
+  getAvailableMethods(): string[] {
+    return Object.getOwnPropertyNames(Object.getPrototypeOf(this))
+      .filter(name => name.startsWith('play') && typeof this[name as keyof this] === 'function')
+      .sort();
+  }
 }
 
-// Глобальный экземпляр системы озвучки
+// Глобальный экземпляр расширенной системы озвучки
 export const audioSystem = new WBAudioSystem();
