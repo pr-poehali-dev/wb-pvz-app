@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import Icon from '@/components/ui/icon';
 import { Badge } from '@/components/ui/badge';
 import WBOrderProcessor from '@/components/WBOrderProcessor';
+import AudioTester from '@/components/AudioTester';
 import { audioSystem } from '@/utils/audioSystem';
 
 // Типы данных
@@ -455,6 +456,22 @@ const Index = () => {
               </div>
             )}
           </div>
+
+          {/* Панель тестирования озвучки */}
+          {activeTab === 'выдача' && !currentOrder && (
+            <div className="fixed bottom-4 right-4 z-50">
+              <div className="bg-white rounded-xl shadow-lg p-2">
+                <details className="cursor-pointer">
+                  <summary className="text-xs font-medium text-gray-600 hover:text-gray-800 px-2 py-1">
+                    🎵 Тест озвучки
+                  </summary>
+                  <div className="mt-2 w-96">
+                    <AudioTester />
+                  </div>
+                </details>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
