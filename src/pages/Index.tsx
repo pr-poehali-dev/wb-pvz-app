@@ -1,79 +1,177 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import Icon from '@/components/ui/icon';
 
+interface Order {
+  id: string;
+  cell: string;
+  items: string[];
+  total: number;
+  status: 'ready' | 'processing' | 'completed';
+  cellNumber: number;
+}
+
 const Index = () => {
   const [activeTab, setActiveTab] = useState('выдача');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isScanning, setIsScanning] = useState(false);
-  const [currentOrder, setCurrentOrder] = useState(null);
-  const audioRef = useRef(null);
-
-  const playAudio = async (audioType: string, cellNumber?: string) => {
-    try {
-      // Симуляция воспроизведения аудио из облака
-      const audioUrls = {
-        cell: `https://files.sberdisk.ru/s/ls1nJsPTHTmjvzI/Ячейки/${cellNumber || '1'}.mp3`,
-        discount: 'https://files.sberdisk.ru/s/ls1nJsPTHTmjvzI/Товары со скидкой проверьте ВБ кошелек.mp3',
-        camera: 'https://files.sberdisk.ru/s/ls1nJsPTHTmjvzI/Проверьте товар под камерой.mp3',
-        rate: 'https://files.sberdisk.ru/s/ls1nJsPTHTmjvzI/Оцените наш пункт выдачи в приложении.mp3'
+  const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isProductScanned, setIsProductScanned] = useState(false);
+  const [orderStep, setOrderStep] = useState<'found' | 'scanned' | 'paid'>('found');
+  
+  // Web Speech API для озвучки
+  const speak = useCallback((text: string, priority = false) => {
+    if ('speechSynthesis' in window) {
+      // Остановить текущую озвучку если это приоритетное сообщение
+      if (priority) {
+        window.speechSynthesis.cancel();
+      }
+      
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'ru-RU';
+      utterance.rate = 1.1;
+      utterance.pitch = 1.0;
+      utterance.volume = 0.8;
+      
+      utterance.onstart = () => setIsSpeaking(true);
+      utterance.onend = () => setIsSpeaking(false);
+      utterance.onerror = () => {
+        setIsSpeaking(false);
+        console.log('Ошибка озвучки, используем console.log:', text);
       };
       
-      // Симуляция озвучки
-      console.log(`Воспроизводится: ${audioType}`, cellNumber);
-    } catch (error) {
-      console.error('Ошибка воспроизведения аудио:', error);
+      window.speechSynthesis.speak(utterance);
+    } else {
+      console.log('ОЗВУЧКА:', text);
+      // Визуальная обратная связь
+      const toast = document.createElement('div');
+      toast.textContent = `🔊 ${text}`;
+      toast.className = 'fixed top-4 right-4 bg-primary text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-fade-in';
+      document.body.appendChild(toast);
+      setTimeout(() => {
+        document.body.removeChild(toast);
+      }, 3000);
     }
+  }, []);
+
+  // Генерация случайных заказов
+  const generateRandomOrder = (): Order => {
+    const orderIds = ['WB12345678', 'WB87654321', 'WB55667788', 'WB99112233', 'WB44556677'];
+    const cells = [
+      { cell: 'А-15', number: 15 },
+      { cell: 'Б-23', number: 23 },
+      { cell: 'В-07', number: 7 },
+      { cell: 'Г-41', number: 41 },
+      { cell: 'Д-12', number: 12 }
+    ];
+    const items = [
+      ['Кроссовки Nike', 'Футболка'],
+      ['Платье летнее'],
+      ['Джинсы', 'Рубашка', 'Кепка'],
+      ['Сумка женская'],
+      ['Телефон Samsung', 'Чехол']
+    ];
+    const totals = [2890, 1590, 4250, 3100, 15990];
+    
+    const randomIndex = Math.floor(Math.random() * orderIds.length);
+    const selectedCell = cells[randomIndex];
+    
+    return {
+      id: orderIds[randomIndex],
+      cell: selectedCell.cell,
+      cellNumber: selectedCell.number,
+      items: items[randomIndex],
+      total: totals[randomIndex],
+      status: 'ready'
+    };
   };
 
   const handleQRScan = () => {
     setIsScanning(true);
-    // Симуляция сканирования QR-кода клиента
+    setOrderStep('found');
+    setIsProductScanned(false);
+    
+    // Симуляция процесса сканирования
     setTimeout(() => {
-      const mockOrder = {
-        id: 'WB12345678',
-        cell: 'А-15',
-        items: ['Кроссовки Nike', 'Футболка'],
-        total: 2890,
-        status: 'ready'
-      };
-      setCurrentOrder(mockOrder);
+      const order = generateRandomOrder();
+      setCurrentOrder(order);
       setIsScanning(false);
-      // Озвучка номера ячейки
-      playAudio('cell', '15');
-      // Через 2 сек озвучка про скидку
-      setTimeout(() => playAudio('discount'), 2000);
-    }, 2000);
+      
+      // Озвучка номера ячейки с высоким приоритетом
+      speak(`Ячейка номер ${order.cellNumber}`, true);
+      
+      // Через 3 секунды озвучка про скидку
+      setTimeout(() => {
+        speak('Товары со скидкой! Проверьте ВБ кошелёк!');
+      }, 3000);
+      
+    }, 2500);
   };
 
   const handleProductScan = () => {
-    // Симуляция сканирования товара со склада
-    playAudio('camera');
+    if (!currentOrder) return;
+    
+    setIsProductScanned(true);
+    setOrderStep('scanned');
+    
+    // Озвучка про проверку под камерой
+    speak('Проверьте товар под камерой!', true);
+    
+    // Обновляем статус заказа
+    setCurrentOrder(prev => prev ? {...prev, status: 'processing'} : null);
   };
 
   const handlePayment = () => {
-    // Симуляция успешной оплаты
+    if (!currentOrder) return;
+    
+    setOrderStep('paid');
+    
+    // Симуляция обработки оплаты
     setTimeout(() => {
-      playAudio('rate');
-      setCurrentOrder(null);
-    }, 1000);
+      speak('Оцените наш пункт выдачи в приложении ВБ!', true);
+      
+      // Через 4 секунды очищаем заказ
+      setTimeout(() => {
+        setCurrentOrder(null);
+        setIsProductScanned(false);
+        setOrderStep('found');
+        setPhoneNumber('');
+      }, 4000);
+      
+    }, 1500);
   };
 
   const handlePhoneSubmit = () => {
     if (phoneNumber.length === 4) {
-      const mockOrder = {
-        id: 'WB87654321',
-        cell: 'Б-23',
-        items: ['Платье'],
-        total: 1590,
-        status: 'ready'
-      };
-      setCurrentOrder(mockOrder);
-      playAudio('cell', '23');
-      setTimeout(() => playAudio('discount'), 2000);
+      const order = generateRandomOrder();
+      setCurrentOrder(order);
+      setOrderStep('found');
+      setIsProductScanned(false);
+      
+      // Озвучка номера ячейки
+      speak(`Ячейка номер ${order.cellNumber}`, true);
+      
+      // Через 3 секунды озвучка про скидку
+      setTimeout(() => {
+        speak('Товары со скидкой! Проверьте ВБ кошелёк!');
+      }, 3000);
+    }
+  };
+
+  // Очистка при смене вкладки
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    if (tab !== 'выдача') {
+      setCurrentOrder(null);
+      setPhoneNumber('');
+      setIsScanning(false);
+      setIsProductScanned(false);
+      setOrderStep('found');
+      window.speechSynthesis.cancel();
     }
   };
 
@@ -92,9 +190,9 @@ const Index = () => {
             </div>
           </div>
           <div className="flex gap-2">
-            <Icon name="Menu" size={20} />
-            <Icon name="ShoppingCart" size={20} />
-            <Icon name="Search" size={20} />
+            <Icon name="Menu" size={20} className="text-muted-foreground" />
+            <Icon name="ShoppingCart" size={20} className="text-muted-foreground" />
+            <Icon name="Search" size={20} className="text-muted-foreground" />
           </div>
         </div>
       </div>
@@ -105,11 +203,11 @@ const Index = () => {
           {['выдача', 'приёмка', 'возврат'].map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`flex-1 py-4 px-2 text-center relative ${
+              onClick={() => handleTabChange(tab)}
+              className={`flex-1 py-4 px-2 text-center relative transition-colors ${
                 activeTab === tab 
                   ? 'text-primary font-medium' 
-                  : 'text-muted-foreground'
+                  : 'text-muted-foreground hover:text-primary/70'
               }`}
             >
               <div className="flex items-center justify-center gap-2">
@@ -121,7 +219,7 @@ const Index = () => {
                 {tab.charAt(0).toUpperCase() + tab.slice(1)}
               </div>
               {activeTab === tab && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary animate-scale-in" />
               )}
             </button>
           ))}
@@ -133,6 +231,14 @@ const Index = () => {
           </Badge>
         </div>
       </div>
+
+      {/* Sound Indicator */}
+      {isSpeaking && (
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 bg-primary text-white px-4 py-2 rounded-full shadow-lg z-50 flex items-center gap-2 animate-fade-in">
+          <Icon name="Volume2" size={16} />
+          <span className="text-sm">Озвучка...</span>
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="p-6 max-w-md mx-auto">
@@ -146,18 +252,18 @@ const Index = () => {
                 </h2>
                 
                 <div className="relative mb-8">
-                  <div className="w-32 h-32 mx-auto bg-gradient-to-br from-primary/20 to-secondary/20 rounded-2xl flex items-center justify-center">
+                  <div className="w-32 h-32 mx-auto bg-gradient-to-br from-primary/20 to-secondary/20 rounded-2xl flex items-center justify-center border-4 border-dashed border-primary/30">
                     {isScanning ? (
                       <div className="animate-pulse">
-                        <Icon name="Scan" size={40} className="text-primary" />
+                        <Icon name="Scan" size={40} className="text-primary animate-pulse" />
                       </div>
                     ) : (
                       <div className="relative">
                         <div className="w-16 h-16 bg-primary/10 rounded-lg flex items-center justify-center">
                           <Icon name="QrCode" size={24} className="text-primary" />
                         </div>
-                        <div className="absolute -top-2 -right-2 w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                          <div className="w-3 h-3 bg-cyan-400 rounded-full animate-pulse" />
+                        <div className="absolute -top-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                          <div className="w-3 h-3 bg-green-300 rounded-full animate-pulse" />
                         </div>
                       </div>
                     )}
@@ -167,10 +273,17 @@ const Index = () => {
                 <Button 
                   onClick={handleQRScan}
                   disabled={isScanning}
-                  className="w-full mb-6 bg-primary hover:bg-primary/90 text-white"
+                  className="w-full mb-6 bg-primary hover:bg-primary/90 text-white transition-all duration-300 transform hover:scale-105"
                   size="lg"
                 >
-                  {isScanning ? 'Сканирование...' : 'Начать сканирование'}
+                  {isScanning ? (
+                    <div className="flex items-center gap-2">
+                      <Icon name="Loader2" size={16} className="animate-spin" />
+                      Сканирование...
+                    </div>
+                  ) : (
+                    'Начать сканирование'
+                  )}
                 </Button>
 
                 <div className="text-muted-foreground text-sm mb-4">или</div>
@@ -182,17 +295,20 @@ const Index = () => {
                   </h3>
                   <div className="flex gap-2">
                     <Input
-                      type="text"
+                      type="tel"
                       placeholder="Последние 4 цифры номера"
                       value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '').slice(0, 4);
+                        setPhoneNumber(value);
+                      }}
                       maxLength={4}
-                      className="text-center text-lg font-mono"
+                      className="text-center text-lg font-mono tracking-widest"
                     />
                     <Button 
                       onClick={handlePhoneSubmit}
                       disabled={phoneNumber.length !== 4}
-                      className="bg-primary hover:bg-primary/90 text-white"
+                      className="bg-primary hover:bg-primary/90 text-white transition-all duration-300"
                     >
                       <Icon name="Search" size={16} />
                     </Button>
@@ -203,49 +319,91 @@ const Index = () => {
 
             {/* Current Order */}
             {currentOrder && (
-              <Card className="border-0 shadow-lg bg-gradient-to-r from-green-50 to-emerald-50">
+              <Card className={`border-0 shadow-lg transition-all duration-500 ${
+                orderStep === 'found' ? 'bg-gradient-to-r from-blue-50 to-indigo-50' :
+                orderStep === 'scanned' ? 'bg-gradient-to-r from-orange-50 to-amber-50' :
+                'bg-gradient-to-r from-green-50 to-emerald-50'
+              }`}>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold text-foreground">Заказ найден</h3>
-                    <Badge className="bg-green-100 text-green-800">
-                      {currentOrder.status === 'ready' ? 'Готов к выдаче' : 'В обработке'}
+                    <h3 className="font-semibold text-foreground flex items-center gap-2">
+                      <Icon name="Package" size={16} />
+                      Заказ найден
+                    </h3>
+                    <Badge className={`${
+                      orderStep === 'found' ? 'bg-blue-100 text-blue-800' :
+                      orderStep === 'scanned' ? 'bg-orange-100 text-orange-800' :
+                      'bg-green-100 text-green-800'
+                    }`}>
+                      {orderStep === 'found' ? 'Готов к выдаче' :
+                       orderStep === 'scanned' ? 'Товар проверен' :
+                       'Оплачено'}
                     </Badge>
                   </div>
                   
                   <div className="space-y-3">
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">Номер:</span>
-                      <span className="font-medium">{currentOrder.id}</span>
+                      <span className="font-medium font-mono">{currentOrder.id}</span>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">Ячейка:</span>
-                      <span className="font-bold text-primary text-xl">{currentOrder.cell}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-primary text-2xl">{currentOrder.cell}</span>
+                        <Icon name="MapPin" size={16} className="text-primary" />
+                      </div>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-start">
                       <span className="text-muted-foreground">Товары:</span>
-                      <span className="font-medium">{currentOrder.items.join(', ')}</span>
+                      <div className="text-right">
+                        {currentOrder.items.map((item, index) => (
+                          <div key={index} className="font-medium text-sm">{item}</div>
+                        ))}
+                      </div>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">Сумма:</span>
-                      <span className="font-bold">{currentOrder.total} ₽</span>
+                      <span className="font-bold text-lg">{currentOrder.total.toLocaleString()} ₽</span>
                     </div>
                   </div>
 
                   <div className="flex gap-2 mt-6">
-                    <Button 
-                      onClick={handleProductScan}
-                      className="flex-1 bg-orange-500 hover:bg-orange-600 text-white"
-                    >
-                      <Icon name="Package" size={16} className="mr-2" />
-                      Сканировать товар
-                    </Button>
-                    <Button 
-                      onClick={handlePayment}
-                      className="flex-1 bg-green-500 hover:bg-green-600 text-white"
-                    >
-                      <Icon name="CreditCard" size={16} className="mr-2" />
-                      Оплачено
-                    </Button>
+                    {orderStep === 'found' && (
+                      <>
+                        <Button 
+                          onClick={handleProductScan}
+                          className="flex-1 bg-orange-500 hover:bg-orange-600 text-white transition-all duration-300 transform hover:scale-105"
+                        >
+                          <Icon name="Package" size={16} className="mr-2" />
+                          Сканировать товар
+                        </Button>
+                        <Button 
+                          onClick={handlePayment}
+                          disabled
+                          className="flex-1 bg-gray-300 text-gray-500 cursor-not-allowed"
+                        >
+                          <Icon name="CreditCard" size={16} className="mr-2" />
+                          Оплачено
+                        </Button>
+                      </>
+                    )}
+                    
+                    {orderStep === 'scanned' && (
+                      <Button 
+                        onClick={handlePayment}
+                        className="w-full bg-green-500 hover:bg-green-600 text-white transition-all duration-300 transform hover:scale-105"
+                      >
+                        <Icon name="CreditCard" size={16} className="mr-2" />
+                        Оплачено
+                      </Button>
+                    )}
+
+                    {orderStep === 'paid' && (
+                      <div className="w-full text-center py-4">
+                        <Icon name="CheckCircle" size={32} className="text-green-500 mx-auto mb-2" />
+                        <p className="text-green-600 font-medium">Заказ завершён!</p>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -257,9 +415,12 @@ const Index = () => {
           <div className="text-center py-12">
             <Icon name="PackageCheck" size={48} className="text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">Приёмка товаров</h3>
-            <p className="text-muted-foreground">
-              Функция в разработке
+            <p className="text-muted-foreground mb-4">
+              Сканируйте QR-коды поступающих товаров
             </p>
+            <Button className="bg-primary text-white" disabled>
+              В разработке
+            </Button>
           </div>
         )}
 
@@ -267,15 +428,15 @@ const Index = () => {
           <div className="text-center py-12">
             <Icon name="RotateCcw" size={48} className="text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">Возврат товаров</h3>
-            <p className="text-muted-foreground">
-              Функция в разработке
+            <p className="text-muted-foreground mb-4">
+              Обработка возвратов клиентов
             </p>
+            <Button className="bg-primary text-white" disabled>
+              В разработке
+            </Button>
           </div>
         )}
       </div>
-
-      {/* Audio element for sound playback */}
-      <audio ref={audioRef} preload="none" />
     </div>
   );
 };
