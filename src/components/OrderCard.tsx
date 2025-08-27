@@ -3,15 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Icon from '@/components/ui/icon';
-
-interface Order {
-  id: string;
-  cell: string;
-  items: string[];
-  total: number;
-  status: 'ready' | 'processing' | 'completed';
-  cellNumber: number;
-}
+import { Order } from '@/utils/orderUtils';
 
 interface OrderCardProps {
   currentOrder: Order;

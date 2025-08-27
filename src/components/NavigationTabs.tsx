@@ -7,9 +7,10 @@ interface NavigationTabsProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   onShowAudioUploader: () => void;
+  onShowTester?: () => void;
 }
 
-const NavigationTabs = ({ activeTab, onTabChange, onShowAudioUploader }: NavigationTabsProps) => {
+const NavigationTabs = ({ activeTab, onTabChange, onShowAudioUploader, onShowTester }: NavigationTabsProps) => {
   return (
     <div className="bg-white border-b border-gray-200">
       <div className="flex items-center justify-center gap-8 px-6 py-4">
@@ -50,8 +51,8 @@ const NavigationTabs = ({ activeTab, onTabChange, onShowAudioUploader }: Navigat
         </div>
       </div>
       
-      {/* Настройка озвучки - скрытая кнопка внизу */}
-      <div className="flex justify-center pb-2">
+      {/* Настройка озвучки и тестирование - скрытые кнопки внизу */}
+      <div className="flex justify-center gap-4 pb-2">
         <Button
           variant="ghost"
           size="sm"
@@ -61,6 +62,17 @@ const NavigationTabs = ({ activeTab, onTabChange, onShowAudioUploader }: Navigat
           <Icon name="Volume2" size={12} className="mr-1" />
           Настроить озвучку
         </Button>
+        {onShowTester && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onShowTester}
+            className="text-xs text-gray-400 hover:text-blue-600"
+          >
+            <Icon name="TestTube" size={12} className="mr-1" />
+            Тестирование
+          </Button>
+        )}
       </div>
     </div>
   );

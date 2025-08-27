@@ -7,6 +7,7 @@ import QRScanner from '@/components/QRScanner';
 import OrderCard from '@/components/OrderCard';
 import TabContent from '@/components/TabContent';
 import AudioUploader from '@/components/AudioUploader';
+import AppTester from '@/components/AppTester';
 import { useAudio } from '@/hooks/useAudio';
 import { generateRandomOrder, Order } from '@/utils/orderUtils';
 
@@ -18,6 +19,7 @@ const Index = () => {
   const [isProductScanned, setIsProductScanned] = useState(false);
   const [orderStep, setOrderStep] = useState<'found' | 'scanned' | 'paid'>('found');
   const [showAudioUploader, setShowAudioUploader] = useState(false);
+  const [showTester, setShowTester] = useState(false);
   
   const { audioRef, isSpeaking, playAudioFile } = useAudio();
 
@@ -102,7 +104,11 @@ const Index = () => {
       setIsScanning(false);
       setIsProductScanned(false);
       setOrderStep('found');
-      window.speechSynthesis.cancel();
+      // Остановка текущего аудио
+      if (audioRef.current && !audioRef.current.paused) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
     }
   };
 
@@ -141,6 +147,7 @@ const Index = () => {
           activeTab={activeTab}
           onTabChange={handleTabChange}
           onShowAudioUploader={() => setShowAudioUploader(true)}
+          onShowTester={() => setShowTester(true)}
         />
 
         {/* Sound Indicator */}
@@ -187,6 +194,11 @@ const Index = () => {
       {/* Модальное окно загрузки аудио */}
       {showAudioUploader && (
         <AudioUploader onClose={() => setShowAudioUploader(false)} />
+      )}
+
+      {/* Модальное окно тестирования */}
+      {showTester && (
+        <AppTester onClose={() => setShowTester(false)} />
       )}
     </div>
   );
