@@ -1,22 +1,24 @@
 import { useState } from 'react';
-import { categorizeAudioFiles, getFunctionDisplayName, type AudioMapping } from '@/utils/audioRecognition';
 
 export interface ProcessedFile {
   file: File;
-  mapping: AudioMapping;
-  status: 'pending' | 'uploaded' | 'failed';
-  displayName: string;
+  functionType?: string;
+  cellNumber?: number;
+  status: 'pending' | 'uploaded' | 'failed' | 'skipped';
+  displayName?: string;
 }
 
 export const useAudioUploader = () => {
   const [uploadStatus, setUploadStatus] = useState<Record<string, 'pending' | 'uploaded'>>({});
+  const [audioFiles, setAudioFiles] = useState<File[]>([]);
+  const [currentFileIndex, setCurrentFileIndex] = useState(0);
   const [processedFiles, setProcessedFiles] = useState<ProcessedFile[]>([]);
-  const [unrecognizedFiles, setUnrecognizedFiles] = useState<File[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showCloudLoader, setShowCloudLoader] = useState(false);
+  const [showAudioPlayer, setShowAudioPlayer] = useState(false);
 
   // Сохранение аудиофайла
-  const saveAudioFile = async (processedFile: ProcessedFile): Promise<void> => {
+  const saveAudioFile = async (file: File, functionType: string, cellNumber?: number): Promise<void> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       
@@ -24,15 +26,30 @@ export const useAudioUploader = () => {
         try {
           const base64 = reader.result as string;
           let storageKey: string;
+          let displayName: string;
           
-          if (processedFile.mapping.type === 'cell') {
-            storageKey = `audio_cells_${processedFile.mapping.cellNumber}`;
+          if (functionType === 'cell' && cellNumber) {
+            storageKey = `audio_cells_${cellNumber}`;
+            displayName = `Ячейка ${cellNumber}`;
           } else {
-            storageKey = `audio_${processedFile.mapping.type}`;
+            storageKey = `audio_${functionType}`;
+            switch (functionType) {
+              case 'discount':
+                displayName = 'Скидки/Кошелёк';
+                break;
+              case 'camera':
+                displayName = 'Проверка под камерой';
+                break;
+              case 'rate':
+                displayName = 'Оценка приложения';
+                break;
+              default:
+                displayName = functionType;
+            }
           }
           
           localStorage.setItem(storageKey, base64);
-          console.log(`✅ Сохранён: ${processedFile.file.name} -> ${storageKey}`);
+          console.log(`✅ Сохранён: ${file.name} -> ${displayName}`);
           resolve();
         } catch (error) {
           reject(error);
@@ -40,77 +57,111 @@ export const useAudioUploader = () => {
       };
       
       reader.onerror = () => reject(new Error('Ошибка чтения файла'));
-      reader.readAsDataURL(processedFile.file);
+      reader.readAsDataURL(file);
     });
   };
 
-  // Автоматическая загрузка всей папки с аудио
+  // Обработка загрузки файлов
   const handleBulkUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
-    setIsProcessing(true);
-    console.log(`📁 Начинается автоматическая обработка ${files.length} файлов`);
+    const audioFilesList = Array.from(files).filter(file => file.type.startsWith('audio/'));
+    console.log(`📁 Загружено ${audioFilesList.length} аудиофайлов для прослушивания`);
 
-    const { recognized, unrecognized } = categorizeAudioFiles(Array.from(files));
+    setAudioFiles(audioFilesList);
+    setCurrentFileIndex(0);
+    setProcessedFiles(audioFilesList.map(file => ({ 
+      file, 
+      status: 'pending' as const 
+    })));
     
-    // Подготавливаем обработанные файлы
-    const processed: ProcessedFile[] = recognized.map(({ file, mapping }) => ({
-      file,
-      mapping,
-      status: 'pending' as const,
-      displayName: getFunctionDisplayName(
-        mapping.type,
-        mapping.cellNumber
-      )
-    }));
-
-    setProcessedFiles(processed);
-    setUnrecognizedFiles(unrecognized);
-
-    console.log(`✅ Распознано: ${recognized.length} файлов`);
-    console.log(`❓ Не распознано: ${unrecognized.length} файлов`);
-
-    // Загружаем распознанные файлы
-    let uploadedCount = 0;
-    for (const processedFile of processed) {
-      try {
-        await saveAudioFile(processedFile);
-        uploadedCount++;
-        
-        // Обновляем статус файла
-        setProcessedFiles(prev => 
-          prev.map(pf => 
-            pf.file === processedFile.file 
-              ? { ...pf, status: 'uploaded' }
-              : pf
-          )
-        );
-      } catch (error) {
-        console.error(`Ошибка загрузки ${processedFile.file.name}:`, error);
-        setProcessedFiles(prev => 
-          prev.map(pf => 
-            pf.file === processedFile.file 
-              ? { ...pf, status: 'failed' }
-              : pf
-          )
-        );
-      }
+    if (audioFilesList.length > 0) {
+      setShowAudioPlayer(true);
     }
+  };
 
-    // Обновляем общий статус
-    const newStatus = { ...uploadStatus };
-    if (recognized.some(r => r.mapping.type === 'discount')) newStatus['discount'] = 'uploaded';
-    if (recognized.some(r => r.mapping.type === 'camera')) newStatus['camera'] = 'uploaded';
-    if (recognized.some(r => r.mapping.type === 'rate')) newStatus['rate'] = 'uploaded';
+  // Привязка аудио к функции
+  const assignAudioToFunction = async (functionType: string, cellNumber?: number) => {
+    if (currentFileIndex >= audioFiles.length) return;
     
-    const cellFiles = recognized.filter(r => r.mapping.type === 'cell');
-    if (cellFiles.length > 0) newStatus['cells_folder'] = 'uploaded';
-    
-    setUploadStatus(newStatus);
-    setIsProcessing(false);
-    
-    console.log(`🎉 Автозагрузка завершена! Загружено: ${uploadedCount}/${processed.length}`);
+    const currentFile = audioFiles[currentFileIndex];
+    setIsProcessing(true);
+
+    try {
+      await saveAudioFile(currentFile, functionType, cellNumber);
+      
+      // Обновляем статус файла
+      setProcessedFiles(prev =>
+        prev.map((pf, index) =>
+          index === currentFileIndex
+            ? { 
+                ...pf, 
+                status: 'uploaded' as const, 
+                functionType, 
+                cellNumber,
+                displayName: cellNumber ? `Ячейка ${cellNumber}` : getFunctionDisplayName(functionType)
+              }
+            : pf
+        )
+      );
+
+      // Обновляем общий статус
+      const newStatus = { ...uploadStatus };
+      if (functionType === 'cell') {
+        // Проверяем есть ли хотя бы одна ячейка
+        const hasAnyCells = Object.keys(localStorage).some(key => key.startsWith('audio_cells_'));
+        if (hasAnyCells) newStatus['cells_folder'] = 'uploaded';
+      } else {
+        newStatus[functionType] = 'uploaded';
+      }
+      setUploadStatus(newStatus);
+
+      // Переходим к следующему файлу
+      moveToNextFile();
+      
+    } catch (error) {
+      console.error(`Ошибка загрузки ${currentFile.name}:`, error);
+      setProcessedFiles(prev =>
+        prev.map((pf, index) =>
+          index === currentFileIndex ? { ...pf, status: 'failed' as const } : pf
+        )
+      );
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Пропустить файл
+  const skipCurrentFile = () => {
+    setProcessedFiles(prev =>
+      prev.map((pf, index) =>
+        index === currentFileIndex ? { ...pf, status: 'skipped' as const } : pf
+      )
+    );
+    moveToNextFile();
+  };
+
+  // Перейти к следующему файлу
+  const moveToNextFile = () => {
+    const nextIndex = currentFileIndex + 1;
+    if (nextIndex >= audioFiles.length) {
+      // Все файлы обработаны
+      setShowAudioPlayer(false);
+      console.log('🎉 Все аудиофайлы обработаны!');
+    } else {
+      setCurrentFileIndex(nextIndex);
+    }
+  };
+
+  // Получить название функции
+  const getFunctionDisplayName = (functionType: string): string => {
+    switch (functionType) {
+      case 'discount': return 'Скидки/Кошелёк';
+      case 'camera': return 'Проверка под камерой';
+      case 'rate': return 'Оценка приложения';
+      default: return functionType;
+    }
   };
 
   // Проверяем при загрузке, какие файлы уже есть
@@ -150,7 +201,9 @@ export const useAudioUploader = () => {
     });
     setUploadStatus({});
     setProcessedFiles([]);
-    setUnrecognizedFiles([]);
+    setAudioFiles([]);
+    setCurrentFileIndex(0);
+    setShowAudioPlayer(false);
     console.log('🗑️ Все аудиофайлы удалены');
   };
 
@@ -180,14 +233,25 @@ export const useAudioUploader = () => {
     setUploadStatus(newStatus);
   };
 
+  // Получить текущий файл
+  const getCurrentFile = (): File | null => {
+    return audioFiles[currentFileIndex] || null;
+  };
+
   return {
     uploadStatus,
     processedFiles,
-    unrecognizedFiles,
+    audioFiles,
+    currentFileIndex,
     isProcessing,
     showCloudLoader,
+    showAudioPlayer,
     setShowCloudLoader,
+    setShowAudioPlayer,
     handleBulkUpload,
+    assignAudioToFunction,
+    skipCurrentFile,
+    getCurrentFile,
     checkExistingFiles,
     clearAllAudio,
     runDiagnostics,

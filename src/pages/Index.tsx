@@ -8,6 +8,7 @@ import QRScanner from '@/components/QRScanner';
 import OrderCard from '@/components/OrderCard';
 import TabContent from '@/components/TabContent';
 import AudioUploader from '@/components/AudioUploader';
+import Dashboard from '@/components/Dashboard';
 import AppTester from '@/components/AppTester';
 import CloudAudioLoader from '@/components/CloudAudioLoader';
 import { useAudio } from '@/hooks/useAudio';
@@ -211,26 +212,35 @@ const Index = () => {
         {/* Main Content */}
         <div className="flex-1 p-6">
           {activeTab === 'выдача' && (
-            <div className="max-w-2xl mx-auto space-y-6">
-              {/* QR Scanner Section */}
-              <QRScanner 
-                phoneNumber={phoneNumber}
-                isScanning={isScanning}
-                onPhoneNumberChange={setPhoneNumber}
-                onQRScan={handleQRScan}
-                onPhoneSubmit={handlePhoneSubmit}
-              />
-
-              {/* Current Order */}
-              {currentOrder && (
-                <OrderCard 
-                  currentOrder={currentOrder}
-                  orderStep={orderStep}
-                  onProductScan={handleProductScan}
-                  onPayment={handlePayment}
-                />
+            <>
+              {!currentOrder ? (
+                /* Дашборд когда нет активного заказа */
+                <Dashboard />
+              ) : (
+                /* Активный процесс выдачи */
+                <div className="max-w-2xl mx-auto space-y-6">
+                  <OrderCard 
+                    currentOrder={currentOrder}
+                    orderStep={orderStep}
+                    onProductScan={handleProductScan}
+                    onPayment={handlePayment}
+                  />
+                </div>
               )}
-            </div>
+              
+              {/* QR Scanner всегда доступен */}
+              <div className="fixed bottom-6 right-6 z-40">
+                <div className="bg-white rounded-lg shadow-lg p-4 max-w-sm">
+                  <QRScanner 
+                    phoneNumber={phoneNumber}
+                    isScanning={isScanning}
+                    onPhoneNumberChange={setPhoneNumber}
+                    onQRScan={handleQRScan}
+                    onPhoneSubmit={handlePhoneSubmit}
+                  />
+                </div>
+              </div>
+            </>
           )}
 
           {/* Tab Content for other tabs */}
