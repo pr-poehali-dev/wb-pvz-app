@@ -72,27 +72,23 @@ export const useAudio = () => {
           if (audioRef.current) {
             setIsSpeaking(true);
             audioRef.current.play().catch(() => {
-              // Если не удалось воспроизвести файл, используем Web Speech API
               setIsSpeaking(false);
-              speak(fallbackText, true);
+              console.warn(`Не удалось воспроизвести ${audioPath}. Загрузите оригинальные аудиофайлы через "Настроить озвучку"`);
             });
           }
         };
         audioRef.current.onended = () => setIsSpeaking(false);
         audioRef.current.onerror = () => {
-          // Если ошибка загрузки файла, используем Web Speech API
           setIsSpeaking(false);
-          speak(fallbackText, true);
+          console.warn(`Аудиофайл ${audioPath} не найден. Загрузите оригинальные файлы через "Настроить озвучку"`);
         };
         audioRef.current.load();
       } else {
-        // Если нет ref, используем Web Speech API
-        speak(fallbackText, true);
+        console.warn('AudioRef недоступен. Проверьте настройки аудио.');
       }
     } catch (error) {
-      // В случае любой ошибки используем Web Speech API
       console.error('Ошибка воспроизведения аудио:', error);
-      speak(fallbackText, true);
+      console.warn('Загрузите оригинальные аудиофайлы через "Настроить озвучку"');
     }
   }, [speak]);
 
