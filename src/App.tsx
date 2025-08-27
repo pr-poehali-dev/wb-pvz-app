@@ -23,77 +23,131 @@ const WBPickupApp = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Система озвучки с аудио файлами и fallback на синтез речи
+  // Улучшенная система озвучки с реальными аудио файлами
   const playAudio = async (audioFile: string, fallbackText: string) => {
     try {
+      // Пробуем воспроизвести реальный аудио файл
       const audio = new Audio(`/audio/${audioFile}`);
+      audio.volume = 0.8;
       await audio.play();
     } catch (error) {
       // Fallback на синтез речи если файл не найден
       if ('speechSynthesis' in window) {
+        speechSynthesis.cancel(); // Останавливаем предыдущую озвучку
         const utterance = new SpeechSynthesisUtterance(fallbackText);
         utterance.lang = 'ru-RU';
-        utterance.rate = 0.9;
+        utterance.rate = 0.8;
+        utterance.pitch = 1.0;
         speechSynthesis.speak(utterance);
       }
     }
   };
 
-  // Аудио для разных этапов работы
+  // Последовательная озвучка нескольких файлов
+  const playSequentialAudio = async (audioSequence: Array<{file: string, text: string}>, delay = 1500) => {
+    for (let i = 0; i < audioSequence.length; i++) {
+      await playAudio(audioSequence[i].file, audioSequence[i].text);
+      if (i < audioSequence.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  };
+
+  // Аудио файлы из облака cloud.mail.ru/public/WMiM/n1UTJ5fwe
   const audioFiles = {
-    // Из папки "Ячейки"  
+    // Ячейки из папки "Ячейки"
     cellA15: 'ячейки/А15.mp3',
-    cellB23: 'ячейки/Б23.mp3', 
+    cellA16: 'ячейки/А16.mp3',
+    cellA17: 'ячейки/А17.mp3', 
+    cellA18: 'ячейки/А18.mp3',
+    cellB23: 'ячейки/Б23.mp3',
+    cellB24: 'ячейки/Б24.mp3',
     cellV07: 'ячейки/В07.mp3',
+    cellV08: 'ячейки/В08.mp3',
     
-    // Основные команды
-    discountCheck: 'товары-со-скидкой.mp3',
-    cameraCheck: 'проверьте-товар-под-камерой.mp3', 
-    rateService: 'оцените-пункт-выдачи.mp3',
-    thankYou: 'спасибо-за-покупку.mp3'
+    // Основные фразы
+    welcome: 'добро-пожаловать.mp3',
+    discountCheck: 'товары-со-скидкой-проверьте-вб-кошелек.mp3',
+    cameraCheck: 'проверьте-товар-под-камерой.mp3',
+    rateService: 'оцените-наш-пункт-выдачи-в-приложении.mp3',
+    thankYou: 'спасибо-за-покупку-хорошего-дня.mp3',
+    
+    // Дополнительные фразы
+    orderFound: 'заказ-найден.mp3',
+    checkDocument: 'проверьте-документы.mp3',
+    paymentCompleted: 'оплата-прошла.mp3'
   };
 
   const handleQRScan = async (qrData: string) => {
+    // Находим заказ
     const order = orders.find(o => o.id === qrData || o.cell === qrData);
     
     if (order && order.status === 'waiting') {
       setCurrentOrder({ ...order, status: 'scanned' });
       
-      // Озвучка номера ячейки
-      const cellAudio = order.cell === 'А15' ? audioFiles.cellA15 : 
-                       order.cell === 'Б23' ? audioFiles.cellB23 :
-                       order.cell === 'В07' ? audioFiles.cellV07 : 
-                       'ячейки/default.mp3';
+      // Определяем аудио для ячейки
+      const getCellAudio = (cell: string) => {
+        const cellMap: {[key: string]: string} = {
+          'А15': audioFiles.cellA15,
+          'А16': audioFiles.cellA16, 
+          'А17': audioFiles.cellA17,
+          'А18': audioFiles.cellA18,
+          'Б23': audioFiles.cellB23,
+          'Б24': audioFiles.cellB24,
+          'В07': audioFiles.cellV07,
+          'В08': audioFiles.cellV08
+        };
+        return cellMap[cell] || 'ячейки/default.mp3';
+      };
       
-      await playAudio(cellAudio, `Ячейка ${order.cell}`);
-      
-      // Сразу после ячейки - информация о скидках
-      setTimeout(() => {
-        playAudio(audioFiles.discountCheck, 'Товары со скидкой, проверьте ВБ кошелёк');
-      }, 2000);
+      // Последовательная озвучка: заказ найден -> ячейка -> скидки
+      await playSequentialAudio([
+        { file: audioFiles.orderFound, text: 'Заказ найден' },
+        { file: getCellAudio(order.cell), text: `Ячейка ${order.cell}` },
+        { file: audioFiles.discountCheck, text: 'Товары со скидкой, проверьте ВБ кошелёк' }
+      ]);
     }
   };
 
-  const handlePhoneSearch = () => {
+  const handlePhoneSearch = async () => {
     if (phoneNumber.length >= 4) {
+      const cells = ['А15', 'А16', 'А17', 'А18', 'Б23', 'Б24', 'В07', 'В08'];
+      const randomCell = cells[Math.floor(Math.random() * cells.length)];
+      
       const mockOrder: Order = {
         id: `WB${Math.random().toString().substr(2, 9)}`,
-        cell: ['А15', 'Б23', 'В07'][Math.floor(Math.random() * 3)],
+        cell: randomCell,
         status: 'scanned',
         customerPhone: phoneNumber
       };
       setCurrentOrder(mockOrder);
       
-      setTimeout(() => {
-        playAudio(audioFiles.discountCheck, 'Товары со скидкой, проверьте ВБ кошелёк');
-      }, 1000);
+      // Определяем аудио для ячейки
+      const getCellAudio = (cell: string) => {
+        const cellMap: {[key: string]: string} = {
+          'А15': audioFiles.cellA15, 'А16': audioFiles.cellA16, 'А17': audioFiles.cellA17, 'А18': audioFiles.cellA18,
+          'Б23': audioFiles.cellB23, 'Б24': audioFiles.cellB24, 'В07': audioFiles.cellV07, 'В08': audioFiles.cellV08
+        };
+        return cellMap[cell] || 'ячейки/default.mp3';
+      };
+      
+      // Последовательная озвучка
+      await playSequentialAudio([
+        { file: audioFiles.orderFound, text: 'Заказ найден' },
+        { file: getCellAudio(randomCell), text: `Ячейка ${randomCell}` },
+        { file: audioFiles.discountCheck, text: 'Товары со скидкой, проверьте ВБ кошелёк' }
+      ]);
     }
   };
 
   const handleItemBrought = async () => {
     if (currentOrder) {
       setCurrentOrder({ ...currentOrder, status: 'brought' });
-      await playAudio(audioFiles.cameraCheck, 'Проверьте товар под камерой');
+      // Последовательная озвучка: проверьте документы + проверьте товар под камерой
+      await playSequentialAudio([
+        { file: audioFiles.checkDocument, text: 'Проверьте документы клиента' },
+        { file: audioFiles.cameraCheck, text: 'Проверьте товар под камерой' }
+      ]);
     }
   };
 
@@ -106,13 +160,19 @@ const WBPickupApp = () => {
   const handlePaymentCompleted = async () => {
     if (currentOrder) {
       setCurrentOrder({ ...currentOrder, status: 'paid' });
-      await playAudio(audioFiles.rateService, 'Оцените наш пункт выдачи в приложении');
       
+      // Последовательная озвучка: оплата прошла -> оцените сервис -> спасибо
+      await playSequentialAudio([
+        { file: audioFiles.paymentCompleted, text: 'Оплата успешно прошла' },
+        { file: audioFiles.rateService, text: 'Оцените наш пункт выдачи в приложении' },
+        { file: audioFiles.thankYou, text: 'Спасибо за покупку, хорошего дня!' }
+      ]);
+      
+      // Очищаем заказ после завершения
       setTimeout(() => {
-        playAudio(audioFiles.thankYou, 'Спасибо за покупку, хорошего дня!');
         setCurrentOrder(null);
         setPhoneNumber('');
-      }, 3000);
+      }, 5000);
     }
   };
 
@@ -284,33 +344,7 @@ const WBPickupApp = () => {
                 />
               </div>
 
-              {/* Test Buttons for Audio */}
-              <div className="grid grid-cols-2 gap-3 mt-8">
-                <button 
-                  onClick={() => playAudio(audioFiles.cellA15, 'Ячейка А15')}
-                  className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded text-sm"
-                >
-                  🔊 Тест А15
-                </button>
-                <button 
-                  onClick={() => playAudio(audioFiles.discountCheck, 'Товары со скидкой')}
-                  className="bg-purple-500 hover:bg-purple-600 text-white px-3 py-2 rounded text-sm"
-                >
-                  🔊 Скидки
-                </button>
-                <button 
-                  onClick={() => playAudio(audioFiles.cameraCheck, 'Проверьте под камерой')}
-                  className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded text-sm"
-                >
-                  🔊 Камера
-                </button>
-                <button 
-                  onClick={() => playAudio(audioFiles.rateService, 'Оцените сервис')}
-                  className="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded text-sm"
-                >
-                  🔊 Оценка
-                </button>
-              </div>
+
 
               {/* OR Divider */}
               <div className="text-gray-500 text-lg font-normal">
