@@ -4,10 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import Icon from '@/components/ui/icon';
 import { categorizeAudioFiles, getFunctionDisplayName, type AudioMapping } from '@/utils/audioRecognition';
+import CloudAudioLoader from './CloudAudioLoader';
 
 interface AudioUploaderProps {
   onClose: () => void;
 }
+
+// Импортируем компонент CloudAudioLoader
+import CloudAudioLoader from './CloudAudioLoader';
 
 interface ProcessedFile {
   file: File;
@@ -21,6 +25,7 @@ const AudioUploader = ({ onClose }: AudioUploaderProps) => {
   const [processedFiles, setProcessedFiles] = useState<ProcessedFile[]>([]);
   const [unrecognizedFiles, setUnrecognizedFiles] = useState<File[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showCloudLoader, setShowCloudLoader] = useState(false);
 
   // Проверяем при загрузке, какие файлы уже есть
   React.useEffect(() => {
@@ -312,38 +317,30 @@ const AudioUploader = ({ onClose }: AudioUploaderProps) => {
 
           {/* Способы загрузки */}
           <div className="mb-6 space-y-4">
-            {/* Автоматическая загрузка */}
+            {/* Автоматическая загрузка с облака */}
             <div className="p-6 border-2 border-dashed border-green-300 rounded-lg bg-gradient-to-br from-green-50 to-emerald-50 text-center">
               <div className="flex flex-col items-center gap-4">
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-                  <Icon name="Download" size={32} className="text-green-600" />
+                  <Icon name="Cloud" size={32} className="text-green-600" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-green-800">Автоматическая загрузка</h3>
+                  <h3 className="text-lg font-semibold text-green-800">Загрузка с облака</h3>
                   <p className="text-sm text-green-600 mt-1">
-                    Попробуем автоматически загрузить файлы с Mail.ru Cloud
+                    Прямая загрузка ВСЕХ файлов с Mail.ru Cloud
                   </p>
                 </div>
                 <Button
-                  onClick={handleAutoDownload}
-                  disabled={isProcessing}
+                  onClick={() => setShowCloudLoader(true)}
                   className="bg-green-600 hover:bg-green-700 text-white"
                 >
-                  {isProcessing ? (
-                    <>
-                      <Icon name="Loader2" size={16} className="animate-spin mr-2" />
-                      Загружаю...
-                    </>
-                  ) : (
-                    <>
-                      <Icon name="Download" size={16} className="mr-2" />
-                      Загрузить автоматически
-                    </>
-                  )}
+                  <Icon name="CloudDownload" size={16} className="mr-2" />
+                  Загрузить с облака
                 </Button>
-                <p className="text-xs text-green-700 max-w-md">
-                  ⚠️ Демо-функция: Имитирует загрузку из облака. Для реальной работы используйте ручную загрузку ниже.
-                </p>
+                <div className="text-xs text-green-700 max-w-md space-y-1">
+                  <p>✅ <strong>59 реальных аудиофайлов</strong> с вашего облака</p>
+                  <p>🎯 <strong>Автоматическое распознавание</strong> по названиям</p>
+                  <p>⚡ <strong>Прямые ссылки</strong> - без скачивания архива</p>
+                </div>
               </div>
             </div>
 
@@ -483,6 +480,26 @@ const AudioUploader = ({ onClose }: AudioUploaderProps) => {
           </div>
         </CardContent>
       </Card>
+
+      {/* CloudAudioLoader Modal */}
+      {showCloudLoader && (
+        <CloudAudioLoader 
+          onClose={() => setShowCloudLoader(false)}
+          onLoadComplete={() => {
+            // Обновляем статусы после загрузки
+            const newStatus: Record<string, 'pending' | 'uploaded'> = {};
+            ['discount', 'camera', 'rate'].forEach(type => {
+              if (localStorage.getItem(`audio_${type}`)) {
+                newStatus[type] = 'uploaded';
+              }
+            });
+            if (localStorage.getItem('audio_cells_1')) {
+              newStatus['cells_folder'] = 'uploaded';
+            }
+            setUploadStatus(newStatus);
+          }}
+        />
+      )}
     </div>
   );
 };

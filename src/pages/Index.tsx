@@ -8,8 +8,10 @@ import OrderCard from '@/components/OrderCard';
 import TabContent from '@/components/TabContent';
 import AudioUploader from '@/components/AudioUploader';
 import AppTester from '@/components/AppTester';
+import CloudAudioLoader from '@/components/CloudAudioLoader';
 import { useAudio } from '@/hooks/useAudio';
 import { generateRandomOrder, Order } from '@/utils/orderUtils';
+import { isAudioLoaded } from '@/utils/audioLoader';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('выдача');
@@ -20,8 +22,42 @@ const Index = () => {
   const [orderStep, setOrderStep] = useState<'found' | 'scanned' | 'paid'>('found');
   const [showAudioUploader, setShowAudioUploader] = useState(false);
   const [showTester, setShowTester] = useState(false);
+  const [showCloudLoader, setShowCloudLoader] = useState(false);
+  const [audioLoaded, setAudioLoaded] = useState(false);
   
   const { audioRef, isSpeaking, playAudioFile } = useAudio();
+
+  // Проверяем загружены ли аудиофайлы при запуске
+  React.useEffect(() => {
+    const checkAudioStatus = () => {
+      const loaded = isAudioLoaded();
+      setAudioLoaded(loaded);
+      
+      if (!loaded) {
+        console.log('🔍 Аудиофайлы не найдены. Показываем предложение загрузить с облака...');
+        // Показываем уведомление о загрузке через 2 секунды
+        setTimeout(() => {
+          const notification = document.createElement('div');
+          notification.innerHTML = `
+            <div style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #3b82f6; color: white; padding: 16px 20px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); z-index: 9999; font-family: system-ui; font-size: 14px; max-width: 400px; text-align: center; cursor: pointer;" onclick="this.remove()">
+              <div style="font-weight: 600; margin-bottom: 8px;">🎵 Загрузите озвучку</div>
+              <div>Нажмите "Настроить озвучку" внизу экрана для загрузки аудиофайлов с облака</div>
+            </div>
+          `;
+          document.body.appendChild(notification);
+          setTimeout(() => {
+            if (document.body.contains(notification)) {
+              document.body.removeChild(notification);
+            }
+          }, 6000);
+        }, 2000);
+      } else {
+        console.log('✅ Аудиофайлы найдены и готовы к использованию!');
+      }
+    };
+
+    checkAudioStatus();
+  }, []);
 
   const handleQRScan = () => {
     setIsScanning(true);
@@ -158,6 +194,19 @@ const Index = () => {
           </div>
         )}
 
+        {/* Быстрая загрузка аудио - показываем если не загружено */}
+        {!audioLoaded && (
+          <div className="fixed top-4 right-4 z-40">
+            <Button
+              onClick={() => setShowCloudLoader(true)}
+              className="bg-green-600 hover:bg-green-700 text-white shadow-lg animate-pulse"
+            >
+              <Icon name="CloudDownload" size={16} className="mr-2" />
+              Загрузить озвучку
+            </Button>
+          </div>
+        )}
+
         {/* Main Content */}
         <div className="flex-1 p-6">
           {activeTab === 'выдача' && (
@@ -199,6 +248,17 @@ const Index = () => {
       {/* Модальное окно тестирования */}
       {showTester && (
         <AppTester onClose={() => setShowTester(false)} />
+      )}
+
+      {/* Модальное окно загрузки с облака */}
+      {showCloudLoader && (
+        <CloudAudioLoader 
+          onClose={() => setShowCloudLoader(false)}
+          onLoadComplete={() => {
+            setAudioLoaded(true);
+            console.log('🎉 Аудиофайлы успешно загружены с облака!');
+          }}
+        />
       )}
     </div>
   );

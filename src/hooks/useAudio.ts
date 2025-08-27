@@ -39,31 +39,45 @@ export const useAudio = () => {
     }
   }, []);
 
-  // Функция для воспроизведения аудиофайлов
+  // Функция для воспроизведения аудиофайлов с резервными вариантами
   const playAudioFile = useCallback(async (audioType: 'cell' | 'discount' | 'camera' | 'rate', cellNumber?: number) => {
     try {
-      // Определяем ключ для localStorage
-      let storageKey = '';
+      // Определяем возможные ключи для localStorage (основной + резервные)
+      let storageKeys: string[] = [];
       
       switch (audioType) {
         case 'cell':
-          storageKey = `audio_cells_${cellNumber || 1}`;
+          storageKeys = [`audio_cells_${cellNumber || 1}`];
           break;
         case 'discount':
-          storageKey = 'audio_discount';
+          // Пытаемся найти любой файл связанный со скидками
+          storageKeys = ['audio_discount', 'audio_skidka', 'audio_koshel'];
           break;
         case 'camera':
-          storageKey = 'audio_camera';
+          // Пытаемся найти любой файл связанный с проверкой товара
+          storageKeys = ['audio_camera', 'audio_prover', 'audio_tovar'];
           break;
         case 'rate':
-          storageKey = 'audio_rate';
+          // Пытаемся найти любой файл связанный с оценкой
+          storageKeys = ['audio_rate', 'audio_ocenka', 'audio_prilog'];
           break;
       }
 
+      // Ищем первый доступный файл
+      let uploadedFile = null;
+      let usedKey = '';
+      
+      for (const key of storageKeys) {
+        uploadedFile = localStorage.getItem(key);
+        if (uploadedFile) {
+          usedKey = key;
+          break;
+        }
+      }
+
       // Проверяем, есть ли загруженный файл в localStorage
-      const uploadedFile = localStorage.getItem(storageKey);
       if (!uploadedFile) {
-        console.warn(`⚠️ Аудиофайл для "${audioType}" не загружен. Откройте "Настроить озвучку" и загрузите файлы.`);
+        console.warn(`⚠️ Аудиофайл для "${audioType}" не загружен. Проверенные ключи: ${storageKeys.join(', ')}`);
         
         // Показываем уведомление пользователю
         const notification = document.createElement('div');
@@ -78,7 +92,7 @@ export const useAudio = () => {
         return;
       }
 
-      console.log(`🎵 Воспроизводим загруженный файл: ${audioType}${cellNumber ? ` (ячейка ${cellNumber})` : ''}`);
+      console.log(`🎵 Воспроизводим загруженный файл: ${audioType}${cellNumber ? ` (ячейка ${cellNumber})` : ''} из ключа: ${usedKey}`);
 
       // Воспроизводим загруженный файл из localStorage
       if (audioRef.current) {
